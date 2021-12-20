@@ -1,0 +1,12 @@
+[GENERAL]
+device = cpu
+
+[DATASET]
+full_path = C:\Users\assar\Desktop\python exercises\DL_Project\images\
+relative_path = images
+image_path = C:\Users\assar\PycharmProjects\pythonProject1\DL_Project\images\Truck\truck.jpg
+
+[ATTACK]
+    attack_iter = 10
+    strength = 255
+
