@@ -1,14 +1,4 @@
-############################################################
-#            Basic PGD attack (for VNN Comp 2021)          #
-#                                                          #
-# Copyright (C) 2021  Huan Zhang (huan@huan-zhang.com)     #
-# Copyright (C) 2021  PyTorch Developers (pytorch.org)     #
-#                                                          #
-# This program is licenced under the BSD 2-Clause License  #
-############################################################
 import time
-from argparse import ArgumentTypeError
-import math
 import os
 
 import cv2
@@ -16,10 +6,7 @@ import matplotlib
 import matplotlib.patches as pac
 import torch
 import numpy as np
-from torch.optim import Optimizer
-# import arguments
 from cocoms_class import classes
-# import PIL.ImageDraw as ImageDraw
 import matplotlib.pyplot as plt
 
 np.random.seed(42)  # For reproducibility
@@ -100,7 +87,7 @@ def attack_with_white_noise_strength(X, model, normalize, base_path, outputImgNa
     strength = 150
     outputImgName = "truck_all"  # Name of the image to save in attack directory
 
-    white_random_noise = np.random.random(X.shape) * (strength)
+    white_random_noise = np.random.random(X.shape) * strength
     delta1 = torch.from_numpy(white_random_noise)  # White noise (torch)
     inputs1 = normalize(X + delta1)  # version1 (original version)
 

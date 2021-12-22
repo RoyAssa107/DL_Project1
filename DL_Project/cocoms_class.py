@@ -1,3 +1,5 @@
+# COCO80 dataset classes
+
 classes = {
  0: u'__background__',
  1: u'person',
