@@ -2,9 +2,9 @@
 device = cpu
 
 [DATASET]
-full_path = C:\Users\assar\Desktop\python exercises\DL_Project\images\
+full_path = images\
 relative_path = images
-image_path = C:\Users\assar\PycharmProjects\pythonProject1\DL_Project\images\Truck\truck.jpg
+image_path = images\Truck\truck.jpg
 
 [ATTACK]
     attack_iter = 10

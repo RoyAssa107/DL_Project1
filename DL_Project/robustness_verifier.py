@@ -18,7 +18,6 @@ import socket
 import random
 import time
 import gc
-import tensorflow as tf
 # from utils import get_test_acc, load_model, load_verification_dataset
 import numpy as np
 import pandas as pd
@@ -240,7 +239,7 @@ def main():
         ## Image (Via Full Path)
         # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Airplane/airplane1.jpg"
         # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Horse/horse4_1.jpg"
-        z = "C:\\Users\\assar\\Desktop\\python exercises\\DL_Project\\images\\Truck\\truck.jpg"
+        z = "images\\Truck\\truck.jpg"
         z = config['DATASET']['image_path']
         imgPath = z
 
