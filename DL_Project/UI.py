@@ -48,9 +48,14 @@ def main():
     #################################################################################
     # TODO: CHANGE THIS FOR LOOP TO RUN ON EVERY IMAGE IN A GIVEN DATASET OF IMAGES #
     #################################################################################
-    for new_idx, imag_idx in enumerate(range(1)):
+    path = config['DATASET']['relative_path']
+    fns = None
+    is_single_image = os.path.isdir(path)
+    if is_single_image:
+        fns = [i for i in os.listdir(path)]
+    for new_idx, fn in enumerate(fns):
         # arguments.Config["bab"]["timeout"] = orig_timeout
-        print('\n %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% idx:', new_idx, 'img ID:', imag_idx,
+        print('\n %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% idx:', new_idx, 'img ID:', fn,
               '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
         torch.cuda.empty_cache()
         gc.collect()
@@ -62,7 +67,11 @@ def main():
         # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Airplane/airplane1.jpg"
         # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Horse/horse4_1.jpg"
         z = "images\\Truck\\truck.jpg"
-        z = config['DATASET']['image_path']
+        # z = config['DATASET']['image_path']
+        if is_single_image:
+            z = path
+        else:
+            z = os.path.join(path, fn)
         imgPath = z
 
         results = model(z)
@@ -78,7 +87,7 @@ def main():
         y = results.pred[0].shape[0]
 
         '''  
-        x, y = X[imag_idx], int(labels[imag_idx].item())
+        x, y = X[fn], int(labels[fn].item())
         x = x.unsqueeze(0).to(dtype=torch.get_default_dtype(), device=arguments.Config["general"]["device"])
 
         # first check the model is correct at the input

@@ -1,12 +1,16 @@
 [GENERAL]
-device = cpu
+    device = cpu
+    seed = 0
 
 [DATASET]
-full_path = images\
-relative_path = images
-image_path = images\Truck\truck.jpg
+    choice = Single
+    full_path = images\
+    relative_path = images
+    image_path = images\Truck\truck.jpg
 
 [ATTACK]
-    attack_iter = 10
-    strength = 255
+    max_iter = 10
+    max_strength = 255 #(can be in range [0,255])
+    target = Missing Detection  #(Missing at least 1/All Detection, False Positive, IOU)
+
 
