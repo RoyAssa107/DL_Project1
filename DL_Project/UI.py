@@ -18,6 +18,7 @@ import socket
 import random
 import time
 import gc
+import numpy as np
 
 import numpy as np
 import pandas as pd
@@ -43,16 +44,20 @@ def main():
     config.read(filenames=config_file_path)
 
     # Loading a pretrained OD Model
-    model = load_model('ultralytics/yolov5', 'yolov5s')
+    model = config['GENERAL']['model']
+    if model == 'yolov5n':
+        model = load_model('ultralytics/yolov5', 'yolov5s')
 
-    #################################################################################
-    # TODO: CHANGE THIS FOR LOOP TO RUN ON EVERY IMAGE IN A GIVEN DATASET OF IMAGES #
-    #################################################################################
     path = config['DATASET']['relative_path']
     fns = None
-    is_single_image = os.path.isdir(path)
-    if is_single_image:
-        fns = [i for i in os.listdir(path)]
+    is_single_image = not os.path.isdir(path)
+    if not is_single_image:
+        fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])
+        while np.any([os.path.isdir(fn) for fn in fns]):
+            for fn in [i for i in fns if os.path.isdir(i)]:
+                new_fns = np.asarray([os.path.join(fn, i) for i in os.listdir(fn)])
+                fns = np.concatenate((fns, new_fns))
+                fns = np.delete(fns, np.argwhere(fns == fn))
     for new_idx, fn in enumerate(fns):
         # arguments.Config["bab"]["timeout"] = orig_timeout
         print('\n %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% idx:', new_idx, 'img ID:', fn,
@@ -62,17 +67,15 @@ def main():
 
         # Image (Via URL)
         z = 'https://ultralytics.com/images/zidane.jpg'
+        z = fn
+        imgPath = z
 
         ## Image (Via Full Path)
         # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Airplane/airplane1.jpg"
         # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Horse/horse4_1.jpg"
-        z = "images\\Truck\\truck.jpg"
+        # z = "images\\Truck\\truck.jpg"
         # z = config['DATASET']['image_path']
-        if is_single_image:
-            z = path
-        else:
-            z = os.path.join(path, fn)
-        imgPath = z
+
 
         results = model(z)
         z = torch.tensor(results.imgs[0])  # Getting back the img to attack

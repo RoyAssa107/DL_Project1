@@ -1,12 +1,10 @@
 [GENERAL]
     device = cpu
     seed = 0
+    model = yolov5n
 
 [DATASET]
-    choice = Single
-    full_path = images\
     relative_path = images
-    image_path = images\Truck\truck.jpg
 
 [ATTACK]
     max_iter = 10
