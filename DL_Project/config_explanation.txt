@@ -1,0 +1,21 @@
+###############################################################
+#                    General parameters:                      #
+# device:  Device to use in order to produce attack (cpu/gpu) #
+# seed:    For reproducibility (any number)                   #
+# model:   OD model to run the attack (any OD model)          #
+###############################################################
+
+##########################################################################
+#                          Dataset parameters:                           #
+# relative_path:    Relative path of images from the project's base path #
+##########################################################################
+
+############################################################################
+#                          Attack parameters:                              #
+# max_iter:         Max number of iterations in a single image attack      #
+# target:           Missing at least one/All Detection/False Positive/IOU  #
+# max_strength:     Any number in range [0,255]                            #
+# noise_algorithm:  Chosen_Noise_Attack/White_Noise_Attack/                #
+                    Bounding_Box_Attack/Bounding_Box_Center_Attack/        #
+                    Bernoulli_Bounding_Box_Attack/Canny_Bernoulli_Attack   #
+############################################################################

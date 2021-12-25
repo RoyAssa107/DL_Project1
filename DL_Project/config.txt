@@ -3,12 +3,12 @@
     seed = 0
     model = yolov5n
 
+
 [DATASET]
-    relative_path = images
+    relative_path = images1
 
 [ATTACK]
     max_iter = 10
-    max_strength = 255 #(can be in range [0,255])
-    target = Missing Detection  #(Missing at least 1/All Detection, False Positive, IOU)
-
-
+    max_strength = 255
+    target = Missing at least one
+    noise_algorithm = Bernoulli_Bounding_Box_Attack
