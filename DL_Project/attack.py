@@ -20,7 +20,7 @@ np.random.seed(42)  # For reproducibility
 # Function that saves results image to a given base path && the corresponding output image name
 def save_result_image1(plt1, base_path, outputImageName):
     counter = 1
-    while (True):
+    while True:
         newResult = base_path + outputImageName + str(counter) + ".jpg"
         if not os.path.exists(newResult):
             plt1.savefig(newResult)
@@ -59,7 +59,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
         # x,y,w,h
         rect = pac.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], linewidth=1, edgecolor='r', fill=False)
         plt.gca().add_patch(rect)
-        h = box[3] - box[1]
+        # h = box[3] - box[1]
 
         plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1]) + 1] + f", {round(box[-2].item(), 3)}", c='black',
                  backgroundcolor='g')
@@ -77,7 +77,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
         rect = pac.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], linewidth=1, edgecolor='r',
                              fill=False)
         plt.gca().add_patch(rect)
-        h = box[3] - box[1]
+        # h = box[3] - box[1]
         plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1]) + 1] + f", {round(box[-2].item(), 3)}", c='black',
                  backgroundcolor='g')
 
@@ -98,7 +98,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
 
 def attack_with_white_noise_strength(X, model, normalize, base_path, outputImgName, results):
     # Attempt to add specific noise (with specified strength)
-    base_path = "/home/avraham/alpha-beta-CROWN/complete_verifier/Attack_Output/White_Noise_Attack/Truck/"
+    # base_path = "/home/avraham/alpha-beta-CROWN/complete_verifier/Attack_Output/White_Noise_Attack/Truck/"
     strength = 150
     outputImgName = "truck_all"  # Name of the image to save in attack directory
 
@@ -187,28 +187,24 @@ def attack_on_bounding_box(X, model, normalize, base_path, outputImgName, result
 # In addition, it creates a new Test directory for current attack session
 def createDir(path):
     # Trying to create a new directory in attack_output for the specified coco class (from path)
-    try:
-        os.mkdir(path)
-        print(f"Successfully created directory: \"{path}\"")
-    except:
-        print(colored(f"Directory {path} already exists.\n Using cached directory!", "yellow"))
+    os.makedirs(path, exist_ok=True)
 
     # Trying to create new Test directory inside Attack_Output directory
     index = 1
-    max = 20  # Limit the number of overall test sessions (changeable)
-    while max > 0:
+    max_sess = 20  # Limit the number of overall test sessions (changeable)
+    while max_sess > 0:
         path_dir_test = path + "\\Test" + str(index)
         try:
             # Trying to create a new directory in attack_output for the specified coco class (from path)
             os.mkdir(path_dir_test)
             print(f"Successfully created directory: \"{path_dir_test}\"")
             return path_dir_test
-        except:
-            pass
+        except BaseException as error:
+            print('An exception occurred: {}'.format(error))
         # except:
         #     print(f"Folder in path: {path_dir_test} already exists!")
         index += 1
-        max -= 1
+        max_sess -= 1
 
 
 # Function that finds the class of a given img path
@@ -243,7 +239,8 @@ def attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, im
 
     # outputImgName = "\\" + imgClass + "_all"  # Name of the image to save in attack directory
     # outputImgName += "_" + str(strength) + "_Bernoulli_" + str(p_noised) + "_Bounding_box_Noise"
-    outputImgName = "\\" + imgPath.split('.')[0].split('\\')[-1]  # Get pure name of image (without path and format of image)
+    outputImgName = "\\" + imgPath.split('.')[0].split('\\')[
+        -1]  # Get pure name of image (without path and format of image)
     outputImgName += "_" + str(strength) + "_Bernoulli_" + str(p_noised) + "_Bounding_box_Noise"
 
     # Extract preds of original image ran on OD Neural Net
@@ -590,6 +587,7 @@ def attack_pgd(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
     # Running several iterations on a given image specified by X.
     # In each iteration, we strengthen the attack if we haven't managed to produce
     # the wanted attack specified by "target" in the config.txt file
+    iteration_num = 0
     for iteration_num in range(1, max_attack_iter + 1, 1):
         strength = 255
         # delta = np.random.random(size=X.shape) * strength
@@ -610,10 +608,9 @@ def attack_pgd(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
 
             ####################################################################################################
             # Added iteration_num variable in order to enhance the attack according to the iteration number
-            original_img, attacked_img, noise, \
-            base_path, outputImgName, attack_output = attack_on_bounding_box_Bernoulli(X, model, normalize, base_path,
-                                                                                       results,
-                                                                                       imgPath, imgClass, iteration_num)
+            original_img, attacked_img, noise, base_path, outputImgName, attack_output = \
+                attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, imgPath, imgClass,
+                                                 iteration_num)
 
             if check_attack_output(target, model_results, attack_output):
                 # Attack succeeded; Plotting & Saving results to directory
@@ -647,8 +644,8 @@ def attack_pgd(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
 #######################################################
 # TODO: Get rid of this function!!! Not needed at all #
 #######################################################
-def pgd_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initialization="uniform", results=None,
-               imgPath=None, noise_algorithm=None, target='Missing one', image_index=1, max_iter=10):
+def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initialization="uniform", results=None,
+              imgPath=None, noise_algorithm=None, target='Missing one', image_index=1, max_iter=10):
     return attack_pgd(model, X=x, y=torch.tensor([y], device=x.device),
                       epsilon=float("inf"),
                       max_attack_iter=max_iter,

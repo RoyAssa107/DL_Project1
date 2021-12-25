@@ -6,18 +6,14 @@
 import configparser
 import os
 import socket
-import random
 import time
 import gc
 import numpy as np
 
-import numpy as np
-import pandas as pd
-
 import torch
 from termcolor import colored
 
-from attack_pgd import pgd_attack
+from attack import od_attack
 
 
 # Function that loads a given model specified by model_name
@@ -73,6 +69,9 @@ def main():
     config.read(filenames=config_file_path)
     starting_time = time.time()
     success_rate = 0
+    target = config['ATTACK']['target']  # Attack target (check config file for further details)
+    max_iter = int(config['ATTACK']['max_iter'])  # Maximal number of iterations during the attack
+    noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
 
     # Loading a pretrained OD Model
     model = config['GENERAL']['model']
@@ -115,8 +114,8 @@ def main():
         x = x[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)
 
         # logit_pred = model_ori(x)[0]
-        logit_pred = results.pred
-        y_pred = 4  # For Zidane img, we have 4 objects; 2 persons, 2 tie
+        # logit_pred = results.pred
+        # y_pred = 4  # For Zidane img, we have 4 objects; 2 persons, 2 tie
         y = results.pred[0].shape[0]
 
         '''  
@@ -139,22 +138,20 @@ def main():
         data_min = None
         data_max = None
         perturb_eps = None
-        target = config['ATTACK']['target']  # Attack target (check config file for further details)
-        max_iter = int(config['ATTACK']['max_iter'])  # Maximal number of iterations during the attack
-        noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
+
         # Bounding_Box_Attack/ Bounding_Box_Center_Attack/ Bernoulli_Bounding_Box_Attack/ Canny_Bernoulli_Attack
 
         attack_args = {'dataset': attack_dataset, 'model': model, 'x': x, 'max_eps': perturb_eps,
                        'data_min': data_min, 'data_max': data_max, 'y': y, 'results': results,
                        'imgPath': imgPath, 'noise_algorithm': noise_algorithm, 'target': target,
                        'image_index': image_index + 1, 'max_iter': max_iter}
-        success, iteration_num, attack_duration, message = pgd_attack(**attack_args)
+        success, iteration_num, attack_duration, message = od_attack(**attack_args)
         print(message)
         if success:
             success_rate += 1
 
     ending_time = time.time()
-    success_rate = success_rate / (image_index + 1)
+    success_rate = success_rate / len(fns)
     summary = colored(f"""
     ########################################################
     ###                     SUMMARY:                     ###
@@ -162,11 +159,11 @@ def main():
     ###     1. Target: {target}
     ###     2. Max iterations: {max_iter}   
     ###     3. Noise algorithm: \"{noise_algorithm}\"                               
-    ###     4. Total number of images: {image_index}                                         
-    ###     5. Attack success rate: {success_rate*100}%                                            
+    ###     4. Total number of images: {len(fns)}                                         
+    ###     5. Attack success rate: {success_rate * 100}%                                            
     ###     6. Attack duration: {round(ending_time - starting_time, 3)}s  
     ########################################################
-    ""","green")
+    """, "green")
     print(summary)
 
 
