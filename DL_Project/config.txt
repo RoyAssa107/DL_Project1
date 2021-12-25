@@ -8,7 +8,7 @@
 [GENERAL]
     device = cpu
     seed = 0
-    model = yolov5n
+    model = yolov5s
 
 ##########################################################################
 #                          Dataset parameters:                           #
@@ -16,7 +16,7 @@
 ##########################################################################
 
 [DATASET]
-    relative_path = images1
+    relative_path = images/Airplane
 
 ############################################################################
 #                          Attack parameters:                              #
@@ -24,8 +24,8 @@
 # target:           Missing at least one/All Detection/False Positive/IOU  #
 # max_strength:     Any number in range [0,255]                            #
 # noise_algorithm:  Chosen_Noise_Attack/White_Noise_Attack/                #
-                    Bounding_Box_Attack/Bounding_Box_Center_Attack/        #
-                    Bernoulli_Bounding_Box_Attack/Canny_Bernoulli_Attack   #
+#                    Bounding_Box_Attack/Bounding_Box_Center_Attack/       #
+#                    Bernoulli_Bounding_Box_Attack/Canny_Bernoulli_Attack  #
 ############################################################################
 
 [ATTACK]

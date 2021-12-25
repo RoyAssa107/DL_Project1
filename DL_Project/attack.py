@@ -95,6 +95,8 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
     if plot_result:
         plt.show()
 
+    time.sleep(0.1)
+
 
 def attack_with_white_noise_strength(X, model, normalize, base_path, outputImgName, results):
     # Attempt to add specific noise (with specified strength)
@@ -190,21 +192,29 @@ def createDir(path):
     os.makedirs(path, exist_ok=True)
 
     # Trying to create new Test directory inside Attack_Output directory
+    # index = 1
+    # max_sess = 20  # Limit the number of overall test sessions (changeable)
+    # while max_sess > 0:
+    #     path_dir_test = path + "\\Test" + str(index)
+    #     try:
+    #         # Trying to create a new directory in attack_output for the specified coco class (from path)
+    #         os.mkdir(path_dir_test)
+    #         print(f"Successfully created directory: \"{path_dir_test}\"")
+    #         return path_dir_test
+    #     except BaseException as error:
+    #         print('An exception occurred: {}'.format(error))
+    #     # except:
+    #     # #     print(f"Folder in path: {path_dir_test} already exists!")
+    #     index += 1
+    #     max_sess -= 1
+
     index = 1
-    max_sess = 20  # Limit the number of overall test sessions (changeable)
-    while max_sess > 0:
-        path_dir_test = path + "\\Test" + str(index)
-        try:
-            # Trying to create a new directory in attack_output for the specified coco class (from path)
-            os.mkdir(path_dir_test)
-            print(f"Successfully created directory: \"{path_dir_test}\"")
-            return path_dir_test
-        except BaseException as error:
-            print('An exception occurred: {}'.format(error))
-        # except:
-        #     print(f"Folder in path: {path_dir_test} already exists!")
+    path_dir_test = path + "\\Test" + str(index)
+    while os.path.exists(path_dir_test):
         index += 1
-        max_sess -= 1
+        path_dir_test = path + "\\Test" + str(index)
+    os.mkdir(path_dir_test)
+    return path_dir_test
 
 
 # Function that finds the class of a given img path
@@ -616,7 +626,7 @@ def attack_pgd(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
                 # Attack succeeded; Plotting & Saving results to directory
                 plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImgName,
                                         attack_output.pred[0],
-                                        results.pred[0], plot_result=True, save_result=True)
+                                        results.pred[0], plot_result=False, save_result=True)
                 success = True
                 break
             ####################################################################################################

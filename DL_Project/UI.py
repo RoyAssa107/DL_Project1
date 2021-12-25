@@ -17,8 +17,12 @@ from attack import od_attack
 
 
 # Function that loads a given model specified by model_name
-def load_model(model_name='ultralytics/yolov5', weights='yolov5s'):
-    model = torch.hub.load(model_name, weights)
+def load_model(weights='yolov5s'):
+    model = None
+    if weights == 'yolov5s':
+        model = torch.hub.load('ultralytics/yolov5', weights, device='cpu')
+    elif weights == 'ssd':
+        return 0
     return model
 
 
@@ -72,22 +76,21 @@ def main():
     target = config['ATTACK']['target']  # Attack target (check config file for further details)
     max_iter = int(config['ATTACK']['max_iter'])  # Maximal number of iterations during the attack
     noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
+    path = config['DATASET']['relative_path']
+    device = config['GENERAL']['device']
 
     # Loading a pretrained OD Model
-    model = config['GENERAL']['model']
+    model_name = config['GENERAL']['model']
+    model = load_model(model_name)
     if model == 'yolov5n':
-        model = load_model('ultralytics/yolov5', 'yolov5s')
+        pass
 
-    path = config['DATASET']['relative_path']
-    fns = None
-    is_single_image = not os.path.isdir(path)
-    if not is_single_image:
-        fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])
-        while np.any([os.path.isdir(fn) for fn in fns]):
-            for fn in [i for i in fns if os.path.isdir(i)]:
-                new_fns = np.asarray([os.path.join(fn, i) for i in os.listdir(fn)])
-                fns = np.concatenate((fns, new_fns))
-                fns = np.delete(fns, np.argwhere(fns == fn))
+    fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])
+    while np.any([os.path.isdir(fn) for fn in fns]):
+        for fn in [i for i in fns if os.path.isdir(i)]:
+            new_fns = np.asarray([os.path.join(fn, i) for i in os.listdir(fn)])
+            fns = np.concatenate((fns, new_fns))
+            fns = np.delete(fns, np.argwhere(fns == fn))
     for image_index, fn in enumerate(fns):
         # arguments.Config["bab"]["timeout"] = orig_timeout
         # print('\n %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% idx:', image_index, 'img ID:', fn,
@@ -97,8 +100,8 @@ def main():
 
         # Image (Via URL)
         # z = 'https://ultralytics.com/images/zidane.jpg'
-        z = fn  # Get current image file name
-        imgPath = z
+        # z = fn  # Get current image file name
+        #  imgPath = z
 
         ## Image (Via Full Path)
         # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Airplane/airplane1.jpg"
@@ -106,10 +109,10 @@ def main():
         # z = "images\\Truck\\truck.jpg"
         # z = config['DATASET']['image_path']
 
-        results = model(z)  # Compute a feed-forward through the OD Net in order to get results of detection
-        z = torch.tensor(results.imgs[0])  # Getting back the img to attack
+        results = model(fn)  # Compute a feed-forward through the OD Net in order to get results of detection
+        z = torch.tensor(results.imgs[0],device=device)  # Getting back the img to attack
         x = z.unsqueeze(0).to(dtype=torch.get_default_dtype(),
-                              device=config['GENERAL']['device'])  # Adding another dimension
+                              device=device)  # Adding another dimension
         x = x.permute(0, 3, 1, 2)  # Permuting img to be in shape: (1,3,780,1280) for Zidane
         x = x[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)
 
@@ -139,11 +142,9 @@ def main():
         data_max = None
         perturb_eps = None
 
-        # Bounding_Box_Attack/ Bounding_Box_Center_Attack/ Bernoulli_Bounding_Box_Attack/ Canny_Bernoulli_Attack
-
         attack_args = {'dataset': attack_dataset, 'model': model, 'x': x, 'max_eps': perturb_eps,
                        'data_min': data_min, 'data_max': data_max, 'y': y, 'results': results,
-                       'imgPath': imgPath, 'noise_algorithm': noise_algorithm, 'target': target,
+                       'imgPath': fn, 'noise_algorithm': noise_algorithm, 'target': target,
                        'image_index': image_index + 1, 'max_iter': max_iter}
         success, iteration_num, attack_duration, message = od_attack(**attack_args)
         print(message)
@@ -153,16 +154,16 @@ def main():
     ending_time = time.time()
     success_rate = success_rate / len(fns)
     summary = colored(f"""
-    ########################################################
-    ###                     SUMMARY:                     ###
+    ##############################################################
+    ###                        SUMMARY:                        ###
     ### Attack Results On Dataset: \"{path}\":              
     ###     1. Target: {target}
     ###     2. Max iterations: {max_iter}   
     ###     3. Noise algorithm: \"{noise_algorithm}\"                               
     ###     4. Total number of images: {len(fns)}                                         
-    ###     5. Attack success rate: {success_rate * 100}%                                            
+    ###     5. Attack success rate: {round(success_rate * 100, 3)}%                                            
     ###     6. Attack duration: {round(ending_time - starting_time, 3)}s  
-    ########################################################
+    ##############################################################
     """, "green")
     print(summary)
 
