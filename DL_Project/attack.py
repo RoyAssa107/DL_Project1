@@ -575,7 +575,7 @@ def getTestDir(base_path):
 ##################################################################################
 # Function that runs the attack in iterations on a specific image specified by X #
 ##################################################################################
-def attack_pgd(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
+def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
                multi_targeted=True, num_classes=10, use_adam=True,
                lower_limit=0.0, upper_limit=1.0, normalize=lambda x: x,
                initialization='uniform', results=None, imgPath=None, noise_algorithm=None,
@@ -648,7 +648,7 @@ def attack_pgd(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
     ###    5. Total duration: {round(ending_time - starting_time, 3)}s                       
     ###########################################################
     """
-    return success, iteration_num, time, message
+    return success, iteration_num, time, results.pred, outputImgName, message
 
 
 #######################################################
@@ -656,7 +656,7 @@ def attack_pgd(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
 #######################################################
 def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initialization="uniform", results=None,
               imgPath=None, noise_algorithm=None, target='Missing one', image_index=1, max_iter=10):
-    return attack_pgd(model, X=x, y=torch.tensor([y], device=x.device),
+    return main_attack(model, X=x, y=torch.tensor([y], device=x.device),
                       epsilon=float("inf"),
                       max_attack_iter=max_iter,
                       num_restarts=1,
@@ -665,3 +665,8 @@ def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initializa
                       results=results, imgPath=imgPath, alpha=0.01,
                       num_classes=80, use_adam=False, multi_targeted=True,
                       noise_algorithm=noise_algorithm, target=target, image_index=image_index)
+
+
+def verify_with_other_models(attacked_preds=None, org_img=None, attacked_img=None):
+
+    pass

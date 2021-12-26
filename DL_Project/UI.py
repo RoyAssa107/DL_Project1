@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from termcolor import colored
 
-from attack import od_attack
+from attack import od_attack, verify_with_other_models
 
 
 # Function that loads a given model specified by model_name
@@ -78,12 +78,11 @@ def main():
     noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
     path = config['DATASET']['relative_path']
     device = config['GENERAL']['device']
+    results = None
 
     # Loading a pretrained OD Model
     model_name = config['GENERAL']['model']
     model = load_model(model_name)
-    if model == 'yolov5n':
-        pass
 
     fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])
     while np.any([os.path.isdir(fn) for fn in fns]):
@@ -91,26 +90,14 @@ def main():
             new_fns = np.asarray([os.path.join(fn, i) for i in os.listdir(fn)])
             fns = np.concatenate((fns, new_fns))
             fns = np.delete(fns, np.argwhere(fns == fn))
+
     for image_index, fn in enumerate(fns):
-        # arguments.Config["bab"]["timeout"] = orig_timeout
-        # print('\n %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% idx:', image_index, 'img ID:', fn,
-        #       '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+
         torch.cuda.empty_cache()
         gc.collect()
 
-        # Image (Via URL)
-        # z = 'https://ultralytics.com/images/zidane.jpg'
-        # z = fn  # Get current image file name
-        #  imgPath = z
-
-        ## Image (Via Full Path)
-        # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Airplane/airplane1.jpg"
-        # z = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Horse/horse4_1.jpg"
-        # z = "images\\Truck\\truck.jpg"
-        # z = config['DATASET']['image_path']
-
         results = model(fn)  # Compute a feed-forward through the OD Net in order to get results of detection
-        z = torch.tensor(results.imgs[0],device=device)  # Getting back the img to attack
+        z = torch.tensor(results.imgs[0], device=device)  # Getting back the img to attack
         x = z.unsqueeze(0).to(dtype=torch.get_default_dtype(),
                               device=device)  # Adding another dimension
         x = x.permute(0, 3, 1, 2)  # Permuting img to be in shape: (1,3,780,1280) for Zidane
@@ -146,10 +133,11 @@ def main():
                        'data_min': data_min, 'data_max': data_max, 'y': y, 'results': results,
                        'imgPath': fn, 'noise_algorithm': noise_algorithm, 'target': target,
                        'image_index': image_index + 1, 'max_iter': max_iter}
-        success, iteration_num, attack_duration, message = od_attack(**attack_args)
+        success, iteration_num, attack_duration, preds, outImgName, message = od_attack(**attack_args)
         print(message)
         if success:
             success_rate += 1
+            results = verify_with_other_models(attacked_preds=preds, org_img=fn, attacked_img=outImgName)
 
     ending_time = time.time()
     success_rate = success_rate / len(fns)
