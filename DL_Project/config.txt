@@ -16,7 +16,7 @@
 ##########################################################################
 
 [DATASET]
-    relative_path = images/Airplane
+    relative_path = images\Airplane\airplane1.jpg
 
 ############################################################################
 #                          Attack parameters:                              #

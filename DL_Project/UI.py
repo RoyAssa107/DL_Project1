@@ -3,12 +3,14 @@
 ##                     Avraham Raviv <avrahamsapir1@gmail.com>         ##
 ##                     Itav Nissim <itav.nissim@gmail.com>             ##
 #########################################################################
+
 import configparser
 import os
 import socket
 import time
 import gc
 import numpy as np
+
 
 import torch
 from termcolor import colored
@@ -67,7 +69,7 @@ def load_model(weights='yolov5s'):
 # produce Adversarial examples on the OD model           #
 ##########################################################
 def main():
-    print(f'Running experiment at {time.ctime()} on {socket.gethostname()}')
+
     config = configparser.ConfigParser()
     config_file_path = 'config.txt'
     config.read(filenames=config_file_path)
@@ -83,18 +85,18 @@ def main():
     # Loading a pretrained OD Model
     model_name = config['GENERAL']['model']
     model = load_model(model_name)
-
-    fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])
-    while np.any([os.path.isdir(fn) for fn in fns]):
-        for fn in [i for i in fns if os.path.isdir(i)]:
-            new_fns = np.asarray([os.path.join(fn, i) for i in os.listdir(fn)])
-            fns = np.concatenate((fns, new_fns))
-            fns = np.delete(fns, np.argwhere(fns == fn))
+    is_single_image = not os.path.isdir(path)
+    if not is_single_image:
+        fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])
+        while np.any([os.path.isdir(fn) for fn in fns]):
+            for fn in [i for i in fns if os.path.isdir(i)]:
+                new_fns = np.asarray([os.path.join(fn, i) for i in os.listdir(fn)])
+                fns = np.concatenate((fns, new_fns))
+                fns = np.delete(fns, np.argwhere(fns == fn))
+    else:
+        fns = [path]
 
     for image_index, fn in enumerate(fns):
-
-        torch.cuda.empty_cache()
-        gc.collect()
 
         results = model(fn)  # Compute a feed-forward through the OD Net in order to get results of detection
         z = torch.tensor(results.imgs[0], device=device)  # Getting back the img to attack

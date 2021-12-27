@@ -8,6 +8,15 @@ import matplotlib.patches as pac
 import torch
 import numpy as np
 from termcolor import colored
+import torchvision.transforms as T
+from PIL import Image
+import gc
+
+transform = T.Compose([
+    T.Resize(800),
+    T.ToTensor(),
+    T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+])
 
 from cocoms_class import classes
 import matplotlib.pyplot as plt
@@ -31,24 +40,26 @@ def save_result_image1(plt1, base_path, outputImageName):
 
 
 # Function that saves results image to a given base path && the corresponding output image name
-def save_result_image(plt1, base_path, outputImageName):
-    newResult = base_path + outputImageName + ".jpg"
+def save_result_image(plt1, base_path, outputImageName,suffix=''):
+    newResult = base_path + outputImageName + suffix + ".jpg"
     plt1.savefig(newResult)
 
 
 # Function that plots the results received from attack_pgd and saving result's image to directory
 def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImageName, pred_attack, pred_real,
                             plot_result=False, save_result=True):
-    # Plotting configurations
-    import matplotlib
-    matplotlib.use('TkAgg')
+
+    # save the attacked image without the bbox
+    plt.imshow(attacked_img)
+    if save_result:
+        save_result_image(plt, base_path, outputImageName, suffix='')  # Save attack result image in directory
 
     # create figure
     rows = 3
     cols = 1
-    fig = plt.figure(figsize=(20, 20))
 
     # Plotting original image
+    fig = plt.figure(figsize=(20, 20))
     fig.add_subplot(rows, cols, 1)
     plt.imshow(original_img)
     plotType = 'Original image'
@@ -89,7 +100,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
         plt.title("Noise image")
 
     if save_result:
-        save_result_image(plt, base_path, outputImageName)  # Save attack result image in directory
+        save_result_image(plt, base_path, outputImageName, suffix='_bbox')  # Save attack result image in directory
 
     # Showing all subfigures in a single plot
     if plot_result:
@@ -626,7 +637,7 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
                 # Attack succeeded; Plotting & Saving results to directory
                 plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImgName,
                                         attack_output.pred[0],
-                                        results.pred[0], plot_result=False, save_result=True)
+                                        results.pred[0], plot_result=True, save_result=True)
                 success = True
                 break
             ####################################################################################################
@@ -648,7 +659,7 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
     ###    5. Total duration: {round(ending_time - starting_time, 3)}s                       
     ###########################################################
     """
-    return success, iteration_num, time, results.pred, outputImgName, message
+    return success, iteration_num, time, results.pred, base_path + outputImgName + imgPath[-4:], message
 
 
 #######################################################
@@ -668,5 +679,93 @@ def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initializa
 
 
 def verify_with_other_models(attacked_preds=None, org_img=None, attacked_img=None):
+    # load DETR
+    # repo = 'pytorch/vision'
+    # model = torch.hub.load(repo, 'resnet50', pretrained=True)
+    model = torch.hub.load('facebookresearch/detr', 'detr_resnet50', pretrained=True)
+    im = Image.open(attacked_img)
+    img = transform(im).unsqueeze(0)
 
+    # propagate through the model
+    outputs = model(img)
+    plot_detr()
+
+
+def plot_detr():
     pass
+    # import math
+    #
+    # from PIL import Image
+    # import requests
+    # import matplotlib.pyplot as plt
+    #
+    # import torch
+    # from torch import nn
+    # from torchvision.models import resnet50
+    # import torchvision.transforms as T
+    # torch.set_grad_enabled(False);
+    #
+    # # COCO classes
+    # CLASSES = [
+    #     'N/A', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
+    #     'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A',
+    #     'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
+    #     'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'N/A', 'backpack',
+    #     'umbrella', 'N/A', 'N/A', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis',
+    #     'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
+    #     'skateboard', 'surfboard', 'tennis racket', 'bottle', 'N/A', 'wine glass',
+    #     'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
+    #     'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
+    #     'chair', 'couch', 'potted plant', 'bed', 'N/A', 'dining table', 'N/A',
+    #     'N/A', 'toilet', 'N/A', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
+    #     'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A',
+    #     'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
+    #     'toothbrush'
+    # ]
+    #
+    # # colors for visualization
+    # COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
+    #           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933]]
+    #
+    # # standard PyTorch mean-std input image normalization
+    # transform = T.Compose([
+    #     T.Resize(800),
+    #     T.ToTensor(),
+    #     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    # ])
+    #
+    # # for output bounding box post-processing
+    # def box_cxcywh_to_xyxy(x):
+    #     x_c, y_c, w, h = x.unbind(1)
+    #     b = [(x_c - 0.5 * w), (y_c - 0.5 * h),
+    #          (x_c + 0.5 * w), (y_c + 0.5 * h)]
+    #     return torch.stack(b, dim=1)
+    #
+    # def rescale_bboxes(out_bbox, size):
+    #     img_w, img_h = size
+    #     b = box_cxcywh_to_xyxy(out_bbox)
+    #     b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
+    #     return b
+    #
+    # def plot_results(pil_img, prob, boxes):
+    #     plt.figure(figsize=(16, 10))
+    #     plt.imshow(pil_img)
+    #     ax = plt.gca()
+    #     colors = COLORS * 100
+    #     for p, (xmin, ymin, xmax, ymax), c in zip(prob, boxes.tolist(), colors):
+    #         ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+    #                                    fill=False, color=c, linewidth=3))
+    #         cl = p.argmax()
+    #         text = f'{CLASSES[cl]}: {p[cl]:0.2f}'
+    #         ax.text(xmin, ymin, text, fontsize=15,
+    #                 bbox=dict(facecolor='yellow', alpha=0.5))
+    #     plt.axis('off')
+    #     plt.show()
+    #
+    # # keep only predictions with 0.7+ confidence
+    # probas = outputs['pred_logits'].softmax(-1)[0, :, :-1]
+    # keep = probas.max(-1).values > 0.9
+    #
+    # # convert boxes from [0; 1] to image scales
+    # bboxes_scaled = rescale_bboxes(outputs['pred_boxes'][0, keep], im.size)
+    # plot_results(im, probas[keep], bboxes_scaled)
