@@ -18,7 +18,7 @@ transform = T.Compose([
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-from cocoms_class import classes
+from cocoms_class import *
 import matplotlib.pyplot as plt
 import time
 
@@ -40,19 +40,22 @@ def save_result_image1(plt1, base_path, outputImageName):
 
 
 # Function that saves results image to a given base path && the corresponding output image name
-def save_result_image(plt1, base_path, outputImageName,suffix=''):
-    newResult = base_path + outputImageName + suffix + ".jpg"
+def save_result_image(plt1, base_path, outputImageName,suffix='', model_name=None):
+    if suffix != '':
+        suffix = '_' + suffix
+    newResult = base_path + outputImageName + '_' + model_name + suffix + ".jpg"
     plt1.savefig(newResult)
 
 
 # Function that plots the results received from attack_pgd and saving result's image to directory
 def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImageName, pred_attack, pred_real,
-                            plot_result=False, save_result=True):
+                            classes=None, plot_result=False, save_result=True, model_name=None):
 
     # save the attacked image without the bbox
+    plt.clf()
     plt.imshow(attacked_img)
     if save_result:
-        save_result_image(plt, base_path, outputImageName, suffix='')  # Save attack result image in directory
+        save_result_image(plt, base_path, outputImageName, model_name=model_name, suffix='')  # Save attack result image in directory
 
     # create figure
     rows = 3
@@ -100,7 +103,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
         plt.title("Noise image")
 
     if save_result:
-        save_result_image(plt, base_path, outputImageName, suffix='_bbox')  # Save attack result image in directory
+        save_result_image(plt, base_path, outputImageName, suffix='_bbox', model_name=model_name)  # Save attack result image in directory
 
     # Showing all subfigures in a single plot
     if plot_result:
@@ -231,8 +234,7 @@ def createDir(path):
 # Function that finds the class of a given img path
 # The function uses the img path name to determine the class
 # The list of classes is found in cocoms_class.py file
-def getClass(imgPath):
-    from cocoms_class import classes
+def getClass(imgPath, classes=None):
     lst_classes = list(classes.values())
     img_class = [coco_class for coco_class in lst_classes if imgPath.__contains__(coco_class)]
 
@@ -498,55 +500,55 @@ def attack_with_chosen_noise_strength(X, model, normalize, base_path, outputImgN
     print()
 
 
-# Function that plots the results received from attack_pgd and saving result's image to directory
-def plot_attacked_image(original_img, attacked_img, noise, base_path, outputImageName, pred_attack, pred_real):
-    # Plotting configurations
-    import matplotlib.pyplot as plt
-    plt.figure()
-    matplotlib.use('TkAgg')
-
-    # create figure
-    fig = plt.figure(figsize=(20, 20))
-
-    # setting values to rows and column variables
-    rows = 3
-    columns = 1
-
-    # showing image
-    # Adds a subplot at the 1st position
-    fig.add_subplot(rows, columns, 1)
-    plt.imshow(original_img)
-    plt.axis('off')
-    plt.title("Original image")
-
-    # Adds a subplot at the 2nd position
-    fig.add_subplot(rows, columns, 2)
-    plt.imshow(attacked_img)
-    plt.axis('off')
-    plt.title("Perturbed image")
-
-    # Adds a subplot at the 3rd position
-    fig.add_subplot(rows, columns, 3)
-    plt.imshow(noise)
-    plt.axis('off')
-    plt.title("Noise image")
-
-    # Save results to output file path specified by basePath + outputImageName without overriding images in directory
-    # counter = 1
-    # while(True):
-    #     newResult = base_path + outputImageName + str(counter) + ".jpg"
-    #     if not os.path.exists(newResult):
-    #         plt.savefig(newResult)
-    #         break
-    #     else:
-    #         counter += 1
-    #
-
-    # Save results to output file path specified by basePath + outputImageName without overriding images in directory
-    save_result_image(plt, base_path, outputImageName)
-
-    plt.show()
-    print()
+# # Function that plots the results received from attack_pgd and saving result's image to directory
+# def plot_attacked_image(original_img, attacked_img, noise, base_path, outputImageName, pred_attack, pred_real):
+#     # Plotting configurations
+#     import matplotlib.pyplot as plt
+#     plt.figure()
+#     matplotlib.use('TkAgg')
+#
+#     # create figure
+#     fig = plt.figure(figsize=(20, 20))
+#
+#     # setting values to rows and column variables
+#     rows = 3
+#     columns = 1
+#
+#     # showing image
+#     # Adds a subplot at the 1st position
+#     fig.add_subplot(rows, columns, 1)
+#     plt.imshow(original_img)
+#     plt.axis('off')
+#     plt.title("Original image")
+#
+#     # Adds a subplot at the 2nd position
+#     fig.add_subplot(rows, columns, 2)
+#     plt.imshow(attacked_img)
+#     plt.axis('off')
+#     plt.title("Perturbed image")
+#
+#     # Adds a subplot at the 3rd position
+#     fig.add_subplot(rows, columns, 3)
+#     plt.imshow(noise)
+#     plt.axis('off')
+#     plt.title("Noise image")
+#
+#     # Save results to output file path specified by basePath + outputImageName without overriding images in directory
+#     # counter = 1
+#     # while(True):
+#     #     newResult = base_path + outputImageName + str(counter) + ".jpg"
+#     #     if not os.path.exists(newResult):
+#     #         plt.savefig(newResult)
+#     #         break
+#     #     else:
+#     #         counter += 1
+#     #
+#
+#     # Save results to output file path specified by basePath + outputImageName without overriding images in directory
+#     save_result_image(plt, base_path, outputImageName)
+#
+#     plt.show()
+#     print()
 
 
 ##############################################################################################
@@ -595,7 +597,11 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
     success = False  # check if attack succeeded after max_attack_iter (at most)
     success_color = None
     model_results = results
-    imgClass = getClass(imgPath)  # holds image class according to file path specified.
+    #######################################################################
+    # TODO: change classes_80 according to specified model (yolo/DETR...) #
+    #######################################################################
+    classes = classes_80
+    imgClass = getClass(imgPath, classes)  # holds image class according to file path specified.
     # Searching class name in file path and checking if it
     # is one of the 80 classes in the coco80 dataset
     base_path = os.getcwd() + "\\Attack_Output\\" + noise_algorithm + "\\" + imgClass
@@ -636,8 +642,8 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
             if check_attack_output(target, model_results, attack_output):
                 # Attack succeeded; Plotting & Saving results to directory
                 plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImgName,
-                                        attack_output.pred[0],
-                                        results.pred[0], plot_result=True, save_result=True)
+                                        attack_output.pred[0],  # [Dx6] -> D is number of detections, 6 is [xmin, ymin, xmax, ymax, p, c]
+                                        results.pred[0], classes=classes, plot_result=True, save_result=True, model_name=model._get_name())
                 success = True
                 break
             ####################################################################################################
@@ -659,7 +665,12 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
     ###    5. Total duration: {round(ending_time - starting_time, 3)}s                       
     ###########################################################
     """
-    return success, iteration_num, time, results.pred, base_path + outputImgName + imgPath[-4:], message
+
+    return_attack_args = {'original_img': original_img, 'attacked_img': attacked_img, 'noise': noise,
+                          'base_path': base_path, 'outputImgName': outputImgName, 'attack_output': attack_output,
+                          'success': success, 'iteration_num': iteration_num, 'time': time, 'results': results,
+                          'output_img_path': base_path + outputImgName + '_' + model._get_name() + imgPath[-4:], 'message': message}
+    return return_attack_args
 
 
 #######################################################
@@ -678,94 +689,50 @@ def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initializa
                       noise_algorithm=noise_algorithm, target=target, image_index=image_index)
 
 
-def verify_with_other_models(attacked_preds=None, org_img=None, attacked_img=None):
+def verify_with_other_models(args=None):
     # load DETR
     # repo = 'pytorch/vision'
     # model = torch.hub.load(repo, 'resnet50', pretrained=True)
     model = torch.hub.load('facebookresearch/detr', 'detr_resnet50', pretrained=True)
-    im = Image.open(attacked_img)
+    im = Image.open(args['output_img_path'])
     img = transform(im).unsqueeze(0)
 
     # propagate through the model
     outputs = model(img)
-    plot_detr()
+    detr_attack_results = post_process_detr(im=im, output=outputs)
+    plot_attacked_image_BOX(args['original_img'], args['attacked_img'], args['noise'], args['base_path'],
+                            args['outputImgName'], detr_attack_results, args['results'].pred[0], classes=classes_90,
+                            plot_result=True, save_result=True, model_name=model._get_name())
+
+# for output bounding box post-processing
+def box_cxcywh_to_xyxy(x):
+    x_c, y_c, w, h = x.unbind(1)
+    b = [(x_c - 0.5 * w), (y_c - 0.5 * h),
+         (x_c + 0.5 * w), (y_c + 0.5 * h)]
+    return torch.stack(b, dim=1)
 
 
-def plot_detr():
-    pass
-    # import math
-    #
-    # from PIL import Image
-    # import requests
-    # import matplotlib.pyplot as plt
-    #
-    # import torch
-    # from torch import nn
-    # from torchvision.models import resnet50
-    # import torchvision.transforms as T
-    # torch.set_grad_enabled(False);
-    #
-    # # COCO classes
-    # CLASSES = [
-    #     'N/A', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
-    #     'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A',
-    #     'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
-    #     'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'N/A', 'backpack',
-    #     'umbrella', 'N/A', 'N/A', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis',
-    #     'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
-    #     'skateboard', 'surfboard', 'tennis racket', 'bottle', 'N/A', 'wine glass',
-    #     'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
-    #     'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
-    #     'chair', 'couch', 'potted plant', 'bed', 'N/A', 'dining table', 'N/A',
-    #     'N/A', 'toilet', 'N/A', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
-    #     'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A',
-    #     'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
-    #     'toothbrush'
-    # ]
-    #
-    # # colors for visualization
-    # COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
-    #           [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933]]
-    #
-    # # standard PyTorch mean-std input image normalization
-    # transform = T.Compose([
-    #     T.Resize(800),
-    #     T.ToTensor(),
-    #     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    # ])
-    #
-    # # for output bounding box post-processing
-    # def box_cxcywh_to_xyxy(x):
-    #     x_c, y_c, w, h = x.unbind(1)
-    #     b = [(x_c - 0.5 * w), (y_c - 0.5 * h),
-    #          (x_c + 0.5 * w), (y_c + 0.5 * h)]
-    #     return torch.stack(b, dim=1)
-    #
-    # def rescale_bboxes(out_bbox, size):
-    #     img_w, img_h = size
-    #     b = box_cxcywh_to_xyxy(out_bbox)
-    #     b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
-    #     return b
-    #
-    # def plot_results(pil_img, prob, boxes):
-    #     plt.figure(figsize=(16, 10))
-    #     plt.imshow(pil_img)
-    #     ax = plt.gca()
-    #     colors = COLORS * 100
-    #     for p, (xmin, ymin, xmax, ymax), c in zip(prob, boxes.tolist(), colors):
-    #         ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-    #                                    fill=False, color=c, linewidth=3))
-    #         cl = p.argmax()
-    #         text = f'{CLASSES[cl]}: {p[cl]:0.2f}'
-    #         ax.text(xmin, ymin, text, fontsize=15,
-    #                 bbox=dict(facecolor='yellow', alpha=0.5))
-    #     plt.axis('off')
-    #     plt.show()
-    #
-    # # keep only predictions with 0.7+ confidence
-    # probas = outputs['pred_logits'].softmax(-1)[0, :, :-1]
-    # keep = probas.max(-1).values > 0.9
-    #
-    # # convert boxes from [0; 1] to image scales
-    # bboxes_scaled = rescale_bboxes(outputs['pred_boxes'][0, keep], im.size)
-    # plot_results(im, probas[keep], bboxes_scaled)
+def rescale_bboxes(out_bbox, size):
+    img_w, img_h = size
+    b = box_cxcywh_to_xyxy(out_bbox)
+    b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
+    return b
+
+
+def post_process_detr(im=None, output=None):
+    # standard PyTorch mean-std input image normalization
+
+    # keep only predictions with 0.7+ confidence
+    probas = output['pred_logits'].softmax(-1)[0, :, :-1]
+    keep = probas.max(-1).values > 0.9
+
+    # convert boxes from [0; 1] to image scales
+    bboxes_scaled = box_cxcywh_to_xyxy(output['pred_boxes'][0, keep])# rescale_bboxes(output['pred_boxes'][0, keep], im.size)
+
+    ret_det = []
+    for p, (xmin, ymin, xmax, ymax) in zip(probas[keep], bboxes_scaled.tolist()):
+        cl_idx = p.argmax()  # get index of detection calss
+        pr = p[cl_idx]  # probability of this detection
+        ret_det.append([xmin, ymin, xmax, ymax, pr, cl_idx])
+
+    return torch.Tensor(ret_det)

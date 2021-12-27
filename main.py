@@ -67,7 +67,7 @@ def plot_results(pil_img, prob, boxes):
     plt.axis('off')
     plt.show()
 
-# keep only predictions with 0.7+ confidence
+    # keep only predictions with 0.7+ confidence
 probas = outputs['pred_logits'].softmax(-1)[0, :, :-1]
 keep = probas.max(-1).values > 0.9
 

@@ -17,7 +17,6 @@ from termcolor import colored
 
 from attack import od_attack, verify_with_other_models
 
-
 # Function that loads a given model specified by model_name
 def load_model(weights='yolov5s'):
     model = None
@@ -135,11 +134,12 @@ def main():
                        'data_min': data_min, 'data_max': data_max, 'y': y, 'results': results,
                        'imgPath': fn, 'noise_algorithm': noise_algorithm, 'target': target,
                        'image_index': image_index + 1, 'max_iter': max_iter}
-        success, iteration_num, attack_duration, preds, outImgName, message = od_attack(**attack_args)
-        print(message)
+        return_args = od_attack(**attack_args)
+        print(return_args['message'])
+        success = return_args['success']
         if success:
             success_rate += 1
-            results = verify_with_other_models(attacked_preds=preds, org_img=fn, attacked_img=outImgName)
+            results = verify_with_other_models(args=return_args)
 
     ending_time = time.time()
     success_rate = success_rate / len(fns)
