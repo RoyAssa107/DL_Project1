@@ -517,6 +517,7 @@ def calculate_iou(box1, box2):
 # Returns True <=> IOU attack was accomplished             #
 ############################################################
 def check_IOU_attack(original_preds, attack_preds, IOU_threshold, classes):
+    IOU_succ_attack_count = 0
     for i in range(min(original_preds.shape[0], attack_preds.shape[0])):
         bbox_original = torch.tensor([original_preds[i][:4].tolist()])  # [x_min, y_min, x_max, y_max]
         bbox_attack = torch.tensor([attack_preds[i][:4].tolist()])  # [x_min, y_min, x_max, y_max]
@@ -528,11 +529,42 @@ def check_IOU_attack(original_preds, attack_preds, IOU_threshold, classes):
         current_bbox_ratio = calculate_iou(bbox_original, bbox_attack)
         print(f"#{i} bbox IOU ratio: {current_bbox_ratio}")
         if current_bbox_ratio <= IOU_threshold:
-            print(colored(f"In #{i} bbox IOU attack succeeded!!! in class: {classes[int(original_preds[i][-1].item())]} ", "green"))
-            print()
-            return True
+            print(
+                colored(f"In bbox #{i} IOU attack succeeded!!! in class:"
+                        f"{classes[int(original_preds[i][-1].item())]} ", "green"))
+            IOU_succ_attack_count += 1
 
-    return False  # return false if *all* bounding boxes don't have less IOU ratio than the specified IOU_threshold
+    # return false if *all* bounding boxes don't have less IOU ratio than the specified IOU_threshold
+    return IOU_succ_attack_count, IOU_succ_attack_count != 0
+
+
+#######################################################################
+# Function that checks if original and attack preds' detection agree. #
+# Returns True <=> detection is False Positive                        #
+#######################################################################
+def check_bbox_FP(original_pred, attack_pred):
+    return original_pred[-1] != attack_pred[-1]
+
+
+############################################################
+# Function that gets the model results and attack results  #
+# Returns True <=> IOU attack was accomplished             #
+############################################################
+def check_False_Positive_attack(original_preds, attack_preds, classes):
+    FP_succ_attack_count = 1
+
+    for i in range(min(original_preds.shape[0], attack_preds.shape[0])):
+        # check the attack achieved the specified IOU threshold at *ANY* bounding box
+        flag_bbox_FP = check_bbox_FP(original_preds[i], attack_preds[i])
+        print(f"#{i} bbox FP: {flag_bbox_FP}")
+        if flag_bbox_FP:
+            print(colored(f"In bbox #{i} found False Positive detection:\n"
+                          f"Original detection: {classes[int(original_preds[i][-1].item())]}\n"
+                          f"Attack detection: {classes[int(attack_preds[i][-1].item())]}\n", "green"))
+            FP_succ_attack_count += 1
+
+    # return false if *all* bounding boxes detections are correct
+    return FP_succ_attack_count, FP_succ_attack_count != 0
 
 
 ##############################################################################################
@@ -540,12 +572,14 @@ def check_IOU_attack(original_preds, attack_preds, IOU_threshold, classes):
 # Returns True <=> the target attack was accomplished                                        #
 ##############################################################################################
 def check_attack_output(target, amount, model_results, output, classes):
-    original_pred_num = model_results.pred[0].shape[0]
-    attack_pred_num = output.pred[0].shape[0]
+    original_preds = model_results.pred[0]
+    attack_preds = output.pred[0]
+    original_pred_num = original_preds.shape[0]
+    attack_pred_num = attack_preds.shape[0]
 
     if target == 'Missing Detection':
         # If the "amount" from config file is larger than the number of detections in the original image
-        # this mean that we would like to miss all detections in the output image
+        # this means that we would like to miss all detections in the output image
         missing_detection_count = min(model_results.pred[0].shape[0], amount)
         return original_pred_num - attack_pred_num >= missing_detection_count
 
@@ -553,8 +587,6 @@ def check_attack_output(target, amount, model_results, output, classes):
         ###################
         # TODO: Check IOU #
         ###################
-        original_preds = model_results.pred[0]
-        attack_preds = output.pred[0]
         IOU_threshold = amount
         return check_IOU_attack(original_preds, attack_preds, IOU_threshold, classes=classes)
         pass
@@ -563,7 +595,7 @@ def check_attack_output(target, amount, model_results, output, classes):
         ########################################
         # TODO: Check false positive via preds #
         ########################################
-        pass
+        return check_False_Positive_attack(original_preds, attack_preds, classes=classes)
 
 
 ####################################################
@@ -589,6 +621,57 @@ def get_attack_function(noise_algorithm):
         return attack_on_bounding_box_Bernoulli
     elif noise_algorithm == "Canny_Bernoulli_Attack":
         return attack_with_canny_and_Bernoulli
+
+
+######################################################################################
+# Function that gets kwargs with all information about model,attack outputs and more #
+# Returns a specific message according to specified targeted attack                  #
+######################################################################################
+def get_message(**msg_args):
+    if msg_args["target"] == 'Missing Detection':
+        message = f"""
+        ################################################################
+        ### Attack Results On Image: \"{msg_args["imgPath"]}\":                                              
+        ###    1. Success: {msg_args["success_color"]}   
+        ###    2. Noise algorithm: {msg_args["noise_algorithm"]}
+        ###    3. Attack target: {msg_args["target"]}
+        ###    4. Missing detection attack success rate: {msg_args["attack_pred"].shape[0]/msg_args["result_pred"].shape[0]}                                                                                            
+        ###    4. Image number in directory: {msg_args["image_index"]}                                    
+        ###    5. Total number of iterations: {msg_args["iteration_num"]}                                    
+        ###    6. Total number of detections in original image: {msg_args["results_pred"].shape[0]}       
+        ###    7. Total number of detections in attacked image: {msg_args["attack_pred"].shape[0]} 
+        ###    8. Total duration: {round(msg_args["ending_time"] - msg_args["starting_time"], 3)}s                       
+        ################################################################
+        """
+    elif msg_args["target"] == 'IOU':
+        message = f"""
+        ################################################################
+        ### Attack Results On Image: \"{msg_args["imgPath"]}\":                                              
+        ###    1. Success: {msg_args["success_color"]}   
+        ###    2. Noise algorithm: {msg_args["noise_algorithm"]}
+        ###    3. Attack target: {msg_args["target"]}         
+        ###    3. IOU threshold: {msg_args["amount"]}      
+        ###    4. IOU attack success rate: {100 * msg_args["num_FP_or_IOU_Misses"]/msg_args["attack_pred"].shape[0]}%                                           
+        ###    5. Image number in directory: {msg_args["image_index"]}                                    
+        ###    6. Total number of iterations: {msg_args["iteration_num"]}                                    
+        ###    7. Total duration: {round(msg_args["ending_time"] - msg_args["starting_time"], 3)}s                       
+        ################################################################
+        """
+
+    elif msg_args["target"] == 'False Positive':
+        message = f"""
+        ################################################################
+        ### Attack Results On Image: \"{msg_args["imgPath"]}\":                                              
+        ###    1. Success: {msg_args["success_color"]}   
+        ###    2. Noise algorithm: {msg_args["noise_algorithm"]}
+        ###    3. Attack target: {msg_args["target"]}
+        ###    4. False-Positive attack success rate: {100 * msg_args["num_FP_or_IOU_Misses"]/msg_args["attack_pred"].shape[0]}%                                                 
+        ###    4. Image number in directory: {msg_args["image_index"]}                                    
+        ###    5. Total number of iterations: {msg_args["iteration_num"]}                                    
+        ###    6. Total duration: {round(msg_args["ending_time"] - msg_args["starting_time"], 3)}s                       
+        ################################################################
+        """
+    return message
 
 
 ##################################################################################
@@ -636,7 +719,10 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
                 chosen_attack(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num)
 
             # checking if attack succeeded
-            if check_attack_output(target, amount, model_results, attack_output, classes=classes):
+            num_FP_or_IOU_Misses, flag_successful_attack = \
+                check_attack_output(target, amount, model_results, attack_output, classes=classes)
+
+            if flag_successful_attack:
                 # Attack succeeded; Plotting & Saving results to directory
                 plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImgName,
                                         attack_output.pred[0],
@@ -655,17 +741,27 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
         success_color = colored(success, 'red')
 
     ending_time = time.time()
-    message = f"""
-    ############################################################
-    ### Attack Results On Image: \"{imgPath}\":                                              
-    ###    1. Success: {success_color}                                                 
-    ###    1. Image number in directory: {image_index}                                    
-    ###    2. Total number of iterations: {iteration_num}                                    
-    ###    3. Total number of detections in original image: {results.pred[0].shape[0]}       
-    ###    4. Total number of detections in attacked image: {attack_output.pred[0].shape[0]} 
-    ###    5. Total duration: {round(ending_time - starting_time, 3)}s                       
-    ###########################################################
-    """
+
+    msg_args = {"imgPath": imgPath, "success_color": success_color,
+                "noise_algorithm": noise_algorithm, "target": target,
+                "image_index": image_index, "iteration_num": iteration_num,
+                "original_pred": results.pred[0], "attack_pred": attack_output.pred[0],
+                "starting_time": starting_time, "ending_time": ending_time,
+                "amount": amount, "num_FP_or_IOU_Misses": num_FP_or_IOU_Misses}
+    message = get_message(**msg_args)  # Getting result of attack message
+    # message = f"""
+    # ############################################################
+    # ### Attack Results On Image: \"{imgPath}\":
+    # ###    1. Success: {success_color}
+    # ###    2. Noise algorithm: {noise_algorithm}
+    # ###    3. Attack target: {target}
+    # ###    4. Image number in directory: {image_index}
+    # ###    5. Total number of iterations: {iteration_num}
+    # ###    6. Total number of detections in original image: {results.pred[0].shape[0]}
+    # ###    7. Total number of detections in attacked image: {attack_output.pred[0].shape[0]}
+    # ###    8. Total duration: {round(ending_time - starting_time, 3)}s
+    # ###########################################################
+    # """
 
     return_attack_args = {'original_img': original_img, 'attacked_img': attacked_img, 'noise': noise,
                           'base_path': base_path, 'outputImgName': outputImgName, 'attack_output': attack_output,
