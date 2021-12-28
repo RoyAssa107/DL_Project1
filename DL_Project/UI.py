@@ -78,12 +78,15 @@ def main():
     max_iter = int(config['ATTACK']['max_iter'])  # Maximal number of iterations during the attack
     noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
     path = config['DATASET']['relative_path']
-    device = config['GENERAL']['device']
+
+    # cpu/gpu configurations
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # device = config['GENERAL']['device']
     results = None
 
     # Loading a pretrained OD Model
     model_name = config['GENERAL']['model']
-    model = load_model(model_name)
+    model = load_model(model_name).to(device)
     is_single_image = not os.path.isdir(path)
     if not is_single_image:
         fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])

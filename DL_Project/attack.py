@@ -10,7 +10,11 @@ import numpy as np
 from termcolor import colored
 import torchvision.transforms as T
 from PIL import Image
-import gc
+from cocoms_class import *
+import matplotlib.pyplot as plt
+import time
+
+# import gc
 
 transform = T.Compose([
     T.Resize(800),
@@ -18,29 +22,11 @@ transform = T.Compose([
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-from cocoms_class import *
-import matplotlib.pyplot as plt
-import time
-
 np.random.seed(42)  # For reproducibility
 
 
-########################################################################################################################
 # Function that saves results image to a given base path && the corresponding output image name
-def save_result_image1(plt1, base_path, outputImageName):
-    counter = 1
-    while True:
-        newResult = base_path + outputImageName + str(counter) + ".jpg"
-        if not os.path.exists(newResult):
-            plt1.savefig(newResult)
-            time.sleep(0.1)
-            break
-        else:
-            counter += 1
-
-
-# Function that saves results image to a given base path && the corresponding output image name
-def save_result_image(plt1, base_path, outputImageName,suffix='', model_name=None):
+def save_result_image(plt1, base_path, outputImageName, suffix='', model_name=None):
     if suffix != '':
         suffix = '_' + suffix
     newResult = base_path + outputImageName + '_' + model_name + suffix + ".jpg"
@@ -50,12 +36,12 @@ def save_result_image(plt1, base_path, outputImageName,suffix='', model_name=Non
 # Function that plots the results received from attack_pgd and saving result's image to directory
 def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImageName, pred_attack, pred_real,
                             classes=None, plot_result=False, save_result=True, model_name=None):
-
     # save the attacked image without the bbox
     plt.clf()
     plt.imshow(attacked_img)
     if save_result:
-        save_result_image(plt, base_path, outputImageName, model_name=model_name, suffix='')  # Save attack result image in directory
+        save_result_image(plt, base_path, outputImageName, model_name=model_name,
+                          suffix='')  # Save attack result image in directory
 
     # create figure
     rows = 3
@@ -69,7 +55,6 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
     plt.title(plotType)
     for box in pred_real:
         # Create new bounding box over detection
-        # rect = pac.Rectangle((9.55873e+02, 4.57898e+02), 7.27803e+01, 6.16653e+01, linewidth=1, edgecolor='r', fill=False)
         # x,y,w,h
         rect = pac.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], linewidth=1, edgecolor='r', fill=False)
         plt.gca().add_patch(rect)
@@ -86,7 +71,6 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
     plt.title(plotType)
     for box in pred_attack:
         # Create new bounding box over detection
-        # rect = pac.Rectangle((9.55873e+02, 4.57898e+02), 7.27803e+01, 6.16653e+01, linewidth=1, edgecolor='r', fill=False)
         # x,y,w,h
         rect = pac.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], linewidth=1, edgecolor='r',
                              fill=False)
@@ -103,7 +87,8 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
         plt.title("Noise image")
 
     if save_result:
-        save_result_image(plt, base_path, outputImageName, suffix='_bbox', model_name=model_name)  # Save attack result image in directory
+        save_result_image(plt, base_path, outputImageName, suffix='_bbox',
+                          model_name=model_name)  # Save attack result image in directory
 
     # Showing all subfigures in a single plot
     if plot_result:
@@ -112,41 +97,45 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
     time.sleep(0.1)
 
 
-def attack_with_white_noise_strength(X, model, normalize, base_path, outputImgName, results):
+def attack_with_white_noise_strength(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num):
     # Attempt to add specific noise (with specified strength)
-    # base_path = "/home/avraham/alpha-beta-CROWN/complete_verifier/Attack_Output/White_Noise_Attack/Truck/"
-    strength = 150
-    outputImgName = "truck_all"  # Name of the image to save in attack directory
+
+    strength = 100 + iteration_num * 10
+    outputImgName = "\\" + imgPath.split('.')[0].split('\\')[-1]  # Get pure name of image
+    # (without path and format of image)
+    outputImgName += "_" + str(strength) + "_White_Noise"
 
     white_random_noise = np.random.random(X.shape) * strength
     delta1 = torch.from_numpy(white_random_noise)  # White noise (torch)
     inputs1 = normalize(X + delta1)  # version1 (original version)
 
-    inputs1 = X + delta1  # version2
-    # inputs1 = inputs1 % 255  # version2 (new version)
+    # inputs1 = X + delta1
+    # inputs1 = inputs1 % 255  # Plotting results
+    inputs1 = normalize(X + delta1)
     original_img = X[0].permute(1, 2, 0)
     attacked_img = inputs1[0].permute(1, 2, 0)
-    noise = attacked_img - original_img
+    noise1 = attacked_img - original_img
 
-    # Rescale pixels
-    # noise1 = (delta1[0].permute(1, 2, 0) + 255) / 256 ###### UNCOMMENT IF YOU PUT strength < 0
-    noise1 = (delta1[0].permute(1, 2, 0)) / 256  ###### UNCOMMENT IF YOU PUT strength > 0
+    # Rescale noise pixels
+    if delta1.min() < 0:
+        # normalize noise to fit inside range [0,255]
+        noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
+    else:
+        # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
+        noise1 = (delta1[0].permute(1, 2, 0)) / 256
+
     original_img1 = original_img / 255
     attacked_img1 = attacked_img / 255
-    output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the white noised image
+    output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the noised image
 
-    outputImgName += "_" + str(strength) + "_WHITE_NOISE"
-    plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
-                            results.pred[0])  # plotting results and save them to output file
-    print()
+    return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
 
-def attack_on_bounding_box(X, model, normalize, base_path, outputImgName, results):
-    ############################################################################################
-    # Attempt to add specific noise (with specified strength)
-    base_path = "/home/avraham/alpha-beta-CROWN/complete_verifier/Attack_Output/Bounding_Box_Attack/Horse/"
-    strength = 100
-    outputImgName = "horse_all"  # Name of the image to save in attack directory
+def attack_on_bounding_box(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num):
+    strength = 10 + 10 * iteration_num  # Noising strength (0-minimal, 255-maximal)
+
+    outputImgName = "\\" + imgPath.split('.')[0].split('\\')[-1]  # Get pure name of image
+    # (without path and format of image)
     outputImgName += "_" + str(strength) + "_Bounding_box_Noise"
 
     # Extract preds of original image ran on OD Neural Net
@@ -185,18 +174,21 @@ def attack_on_bounding_box(X, model, normalize, base_path, outputImgName, result
     inputs1 = normalize(X + delta1)
     original_img = X[0].permute(1, 2, 0)
     attacked_img = inputs1[0].permute(1, 2, 0)
-    noise = attacked_img - original_img
+    noise1 = attacked_img - original_img
 
-    # Rescale pixels
-    noise1 = (delta1[0].permute(1, 2, 0) + 255) / 256  ###### UNCOMMENT IF YOU PUT strength < 0
-    # noise1 = (delta1[0].permute(1, 2, 0)) / 256  ###### UNCOMMENT IF YOU PUT strength > 0
+    # Rescale noise pixels
+    if delta1.min() < 0:
+        # normalize noise to fit inside range [0,255]
+        noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
+    else:
+        # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
+        noise1 = (delta1[0].permute(1, 2, 0)) / 256
+
     original_img1 = original_img / 255
     attacked_img1 = attacked_img / 255
     output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the noised image
 
-    plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
-                            results.pred[0])  # plotting results and save them to output file
-    print()
+    return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
 
 # Function that creates a new directory for a new class for the attack output if doesnt exist
@@ -204,23 +196,6 @@ def attack_on_bounding_box(X, model, normalize, base_path, outputImgName, result
 def createDir(path):
     # Trying to create a new directory in attack_output for the specified coco class (from path)
     os.makedirs(path, exist_ok=True)
-
-    # Trying to create new Test directory inside Attack_Output directory
-    # index = 1
-    # max_sess = 20  # Limit the number of overall test sessions (changeable)
-    # while max_sess > 0:
-    #     path_dir_test = path + "\\Test" + str(index)
-    #     try:
-    #         # Trying to create a new directory in attack_output for the specified coco class (from path)
-    #         os.mkdir(path_dir_test)
-    #         print(f"Successfully created directory: \"{path_dir_test}\"")
-    #         return path_dir_test
-    #     except BaseException as error:
-    #         print('An exception occurred: {}'.format(error))
-    #     # except:
-    #     # #     print(f"Folder in path: {path_dir_test} already exists!")
-    #     index += 1
-    #     max_sess -= 1
 
     index = 1
     path_dir_test = path + "\\Test" + str(index)
@@ -292,16 +267,17 @@ def attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, im
         x_max = int(box[2].item())
         y_min = int(box[1].item())
         y_max = int(box[3].item())
-        # bounding_box_noise[0, :, y_min:min(y_max,640), x_min:min(x_max,1280)] += np.random.random((3, min(y_max,640)-y_min, min(x_max, 1280)-x_min))*strength
-        ##########################################
+        # bounding_box_noise[0, :, y_min:min(y_max,640), x_min:min(x_max,1280)] +=
+        # np.random.random((3, min(y_max,640)-y_min, min(x_max, 1280)-x_min))*strength
+
         bounding_box_shape = (3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)
         samples = np.random.binomial(size=bounding_box_shape, n=1,
-                                     p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from Bernoulli distribution
+                                     p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from
+                                                  # Bernoulli distribution
         noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
         bounding_box_noise[0, :, y_min:min(y_max, 640),
         x_min:min(x_max, 1280)] += noise_pixels * samples  # Adding noise to specific pixels inside each bounding box
-        # that the Bernoulli distribution returned 1
-        ##########################################
+                                                           # that the Bernoulli distribution returned 1
 
     delta1 = torch.from_numpy(bounding_box_noise)  # White noise (torch)
 
@@ -310,7 +286,7 @@ def attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, im
     # inputs1 = normalize(X + delta1)
     original_img = X[0].permute(1, 2, 0)
     attacked_img = inputs1[0].permute(1, 2, 0)
-    noise = attacked_img - original_img
+    noise1 = attacked_img - original_img
 
     # Rescale noise pixels
     if delta1.min() < 0:
@@ -332,18 +308,17 @@ def attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, im
 
 # Function that adds noise to pixels inside each bounding box with Bernoulli distribution
 # On each pixel inside the bounding boxes, we draw a Bernoulli random variable with probability *p* to be noised
-def attack_with_canny_and_Bernoulli(X, model, normalize, base_path, outputImgName, results, imgPath):
+def attack_with_canny_and_Bernoulli(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num):
     ############################################################################################
     # Attempt to add specific noise (with specified strength)
 
-    ##################################################################
-    # TODO: Take the path from the config file (via config variable) #
-    ##################################################################
-    base_path = "C:\\Users\\assar\\PycharmProjects\\pythonProject1\\DL_Project\\Attack_Output\\Canny_Bernoulli_Attack\\Truck\\"
     strength = 255  # Noising strength (0-minimal, 255-maximal)
-    p_noised = 1  # Probability for each pixel to be noised with noise drawn from uniform distribution of specified *strength*
-    outputImgName = "truck_all"  # Name of the image to save in attack directory
-    outputImgName += "_" + str(strength) + "_Canny_Bernoulli_" + str(p_noised) + "_Noise"
+    p_noised = 0.01 * iteration_num  # Probability for each pixel to be noised with noise drawn from uniform
+    # distribution of specified *strength* and current attack iteration
+
+    outputImgName = "\\" + imgPath.split('.')[0].split('\\')[
+        -1]  # Get pure name of image (without path and format of image)
+    outputImgName += "_" + str(strength) + "_Bernoulli_" + str(p_noised) + "_Bounding_box_Noise"
 
     #########################################################################
     ### Bernoulli attack using Canny algorithm to extract edges of objects ###
@@ -359,28 +334,27 @@ def attack_with_canny_and_Bernoulli(X, model, normalize, base_path, outputImgNam
     # entry==0 <=> no edge pixel, entry==1 <=> edge pixel
     canny_output_3_dim = torch.tensor(canny_output).repeat(3, 1, 1).permute(1, 2, 0) / 255
     Bernoulli_samples = np.random.binomial(size=canny_output_3_dim.shape, n=1,
-                                           p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from Bernoulli distribution
+                                           p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from
+    # Bernoulli distribution
     noised_edges = noise * canny_output_3_dim * Bernoulli_samples
 
     new_noised_image = X
     new_noised_image[0] += noised_edges.permute(2, 0, 1)
     inputs1 = new_noised_image
-    #########################################################################
 
-    # inputs1 = X + delta1
-    # inputs1 = inputs1 % 255  # Plotting results
-    ## inputs1 = normalize(X + delta1)
+    delta1 = torch.from_numpy(noised_edges)  # noise (torch)
+
     original_img = X[0].permute(1, 2, 0)
     attacked_img = inputs1[0].permute(1, 2, 0)
     noise = attacked_img - original_img
 
-    # # Rescale noise pixels
-    # if delta1.min() < 0:
-    #     noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(
-    #         delta1.min())) * 255  # normalize noise to fit inside range [0,255]
-    # else:
-    #     # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
-    #     noise1 = (delta1[0].permute(1, 2, 0)) / 256
+    # Rescale noise pixels
+    if delta1.min() < 0:
+        noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(
+            delta1.min())) * 255  # normalize noise to fit inside range [0,255]
+    else:
+        # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
+        noise1 = (delta1[0].permute(1, 2, 0)) / 256
 
     original_img1 = original_img / 255
     attacked_img1 = attacked_img / 255
@@ -388,19 +362,21 @@ def attack_with_canny_and_Bernoulli(X, model, normalize, base_path, outputImgNam
 
     noise1 = noised_edges / 255  #############################CHANGED ACCORDING TO CANNY!!!
     X2 = cv2.cvtColor(X1, cv2.COLOR_BGR2RGB)
-    plot_attacked_image_BOX(X2, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
-                            results.pred[0])  # plotting results and save them to output file
-    print()
+    # plot_attacked_image_BOX(X2, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
+    #                         results.pred[0])  # plotting results and save them to output file
+    # print()
+
+    return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
 
-def attack_on_bounding_box_center(X, model, normalize, base_path, outputImgName, results):
+def attack_on_bounding_box_center(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num):
     ############################################################################################
     # Attempt to add specific noise (with specified strength)
-    base_path = "/home/avraham/alpha-beta-CROWN/complete_verifier/Attack_Output/Bounding_Box_Center_Attack/Bird/"
-    strength = 255
-    r = 100
-    outputImgName = "bird_all"  # Name of the image to save in attack directory
-    outputImgName += "_" + str(strength) + "_Bounding_Box_Center_radius_" + str(r) + "_Noise"
+    strength = 150  # Noising strength (0-minimal, 255-maximal)
+    r = 50 + 10 * iteration_num
+    outputImgName = "\\" + imgPath.split('.')[0].split('\\')[-1]  # Get pure name of image
+    # (without path and format of image)
+    outputImgName += "_" + str(strength) + "_" + str(r) + "_Bounding_box_Noise_Center"
 
     # Extract preds of original image ran on OD Neural Net
     result_preds = results.pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
@@ -419,20 +395,20 @@ def attack_on_bounding_box_center(X, model, normalize, base_path, outputImgName,
 
         # Center of a given bounding box
         cx = (x_min + w / 2)
-        cy = (y_min + h) / 2
+        cy = (y_min + h / 2)
         center.append((cx, cy))
 
-        # New bouding box, with specified radius r and center [x_hat,y_hat,w_hat,h_hat,prob,c]
+        # New bounding box, with specified radius r and center [x_hat,y_hat,w_hat,h_hat,prob,c]
         # I've produced the new centered bounding box, so it doesn't exceed the real bounding box (with min,max)
         x_hat.append(max(cx - r, x_min))
-        y_hat.append(max(cy - r, y_min) + 50)
+        y_hat.append(max(cy - r, y_min))
         w_hat.append(min(2 * r, 2 * (cx - x_min)))
         h_hat.append(min(2 * r, 2 * (cy - y_min)))
         # h_hat.append(4*r)
 
     new_preds = [[x_hat[i], y_hat[i], w_hat[i], h_hat[i], round(result_preds[i, 4].item(), 3),
-                  round(result_preds[i, 5].item(), 3)] for i in
-                 range(result_preds.shape[0])]  # [x_hat,y_hat,w_hat,h_hat,prob,c]
+                  round(result_preds[i, 5].item(), 3)] for i in range(result_preds.shape[0])]
+    # [x_hat,y_hat,w_hat,h_hat,prob,c]
 
     # bounding_box_noise = np.random.random((1, 3, 640, 1280)) * (strength)
     bounding_box_noise = np.zeros(X.shape)
@@ -444,60 +420,71 @@ def attack_on_bounding_box_center(X, model, normalize, base_path, outputImgName,
         y_min = int(box[1])
         h = int(box[3])
         bounding_box_noise[0, :, y_min:min(y_min + h, 640), x_min:min(x_min + w, 1280)] += np.random.random(
-            (3, min(y_min + h, 640) - y_min, min(x_min + w, 1280) - x_min)) * strength
+            (3, max(min(y_min + h, 640) - y_min, 0), min(x_min + w, 1280) - x_min)) * strength
 
     delta1 = torch.from_numpy(bounding_box_noise)  # White noise (torch)
 
     inputs1 = X + delta1
-    inputs1 = inputs1 % 255  # Plotting results
+    # inputs1 = inputs1 % 255  # Plotting results
     # inputs1 = normalize(X + delta1)
     original_img = X[0].permute(1, 2, 0)
     attacked_img = inputs1[0].permute(1, 2, 0)
-    noise = attacked_img - original_img
+    noise1 = attacked_img - original_img
 
     # Rescale noise pixels
     if delta1.min() < 0:
-        noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(
-            delta1.min())) * 255  # normalize noise to fit inside range [0,255]
+        # normalize noise to fit inside range [0,255]
+        noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
     else:
         # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
         noise1 = (delta1[0].permute(1, 2, 0)) / 256
 
-    # noise1 = (delta1[0].permute(1, 2, 0) + 255) / 256 ###### UNCOMMENT IF YOU PUT strength < 0
-    # noise1 = (delta1[0].permute(1, 2, 0)) / 256  ###### UNCOMMENT IF YOU PUT strength > 0
-
     original_img1 = original_img / 255
     attacked_img1 = attacked_img / 255
+
     output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the noised image
+    matplotlib.use('TkAgg')
+    # plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
+    #                         results.pred[0], plot_result=True, save_result=False, classes=classes_80)  # plot & save to output file
+    # print()
+    return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
-    plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
-                            results.pred[0])  # plotting results and save them to output file
-    print()
 
-
-def attack_with_chosen_noise_strength(X, model, normalize, base_path, outputImgName, results):
+def attack_with_chosen_noise_strength(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num):
     ############################################################################################
     # Attempt to add specific noise (with specified strength)
-    strength = 100
-    chosen_noise_strength = np.zeros(X.shape) - (strength)
+    strength = 150  # Noising strength (0-minimal, 255-maximal)
+    r = 50 + 10 * iteration_num
+    outputImgName = "\\" + imgPath.split('.')[0].split('\\')[-1]  # Get pure name of image
+    # (without path and format of image)
+    outputImgName += "_" + str(strength) + "_Chosen_Noise"
+
+    chosen_noise_strength = np.random.random(size=X.shape) * strength
     delta1 = torch.from_numpy(chosen_noise_strength)  # White noise (torch)
-    inputs1 = normalize(X + delta1)
 
     # Plotting results
+    inputs1 = normalize(X + delta1)
     original_img = X[0].permute(1, 2, 0)
     attacked_img = inputs1[0].permute(1, 2, 0)
-    noise = attacked_img - original_img
+    noise1 = attacked_img - original_img
 
-    # Rescale pixels
-    noise1 = (delta1[0].permute(1, 2, 0) + 255) / 256
+    # Rescale noise pixels
+    if delta1.min() < 0:
+        # normalize noise to fit inside range [0,255]
+        noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
+    else:
+        # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
+        noise1 = (delta1[0].permute(1, 2, 0)) / 256
+
     original_img1 = original_img / 255
     attacked_img1 = attacked_img / 255
-    output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the white noised image
 
-    outputImgName += "_" + str(strength) + "_Chosen_Noise"
-    plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
-                            results.pred[0])  # plotting results and save them to output file
-    print()
+    output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the noised image
+    matplotlib.use('TkAgg')
+    # plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
+    #                         results.pred[0], plot_result=True, save_result=False, classes=classes_80)  # plot & save to output file
+    # print()
+    return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
 
 # # Function that plots the results received from attack_pgd and saving result's image to directory
@@ -585,14 +572,32 @@ def getTestDir(base_path):
     return base_path + "\\" + os.listdir(base_path)[-1]
 
 
+###################################################################
+# Function that returns a function object of the specified attack #
+###################################################################
+def get_attack_function(noise_algorithm):
+    if noise_algorithm == "Chosen_Noise_Attack":
+        return attack_with_chosen_noise_strength
+    elif noise_algorithm == "White_Noise_Attack":
+        return attack_with_white_noise_strength
+    elif noise_algorithm == "Bounding_Box_Attack":
+        return attack_on_bounding_box
+    elif noise_algorithm == "Bounding_Box_Center_Attack":
+        return attack_on_bounding_box_center
+    elif noise_algorithm == "Bernoulli_Bounding_Box_Attack":
+        return attack_on_bounding_box_Bernoulli
+    elif noise_algorithm == "Canny_Bernoulli_Attack":
+        return attack_with_canny_and_Bernoulli
+
+
 ##################################################################################
 # Function that runs the attack in iterations on a specific image specified by X #
 ##################################################################################
 def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
-               multi_targeted=True, num_classes=10, use_adam=True,
-               lower_limit=0.0, upper_limit=1.0, normalize=lambda x: x,
-               initialization='uniform', results=None, imgPath=None, noise_algorithm=None,
-               target='Missing at least one', image_index=1):
+                multi_targeted=True, num_classes=10, use_adam=True,
+                lower_limit=0.0, upper_limit=1.0, normalize=lambda x: x,
+                initialization='uniform', results=None, imgPath=None, noise_algorithm=None,
+                target='Missing at least one', image_index=1):
     starting_time = time.time()  # Monitor attack time
     success = False  # check if attack succeeded after max_attack_iter (at most)
     success_color = None
@@ -621,36 +626,30 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
         delta = np.zeros(shape=X.shape) * strength
         inputs = normalize(X + delta)
         with torch.no_grad():
-            output = model(np.asarray(inputs[0].permute(1, 2, 0)))  # Make img to be of the wanted size: (640,1280,3)
+            # Getting the attack specified by noise_algorithm
+            chosen_attack = get_attack_function(noise_algorithm)
 
-            #######################################################################
-            # TODO: Add here if statement to check type of noise attack algorithm #
-            #######################################################################
-            # attack_with_chosen_noise_strength(X, model, normalize, base_path, outputImgName, results)
-            # attack_with_white_noise_strength(X, model, normalize, base_path, outputImgName, results)
-            # attack_on_bounding_box(X, model, normalize, base_path, outputImgName, results)
-            # attack_on_bounding_box_center(X, model, normalize, base_path, outputImgName, results)
-            # attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num)
-            # attack_with_canny_and_Bernoulli(X, model, normalize, base_path, outputImgName, results, imgPath)
-
-            ####################################################################################################
-            # Added iteration_num variable in order to enhance the attack according to the iteration number
+            # running the attack with specified noise algorithm
             original_img, attacked_img, noise, base_path, outputImgName, attack_output = \
-                attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, imgPath, imgClass,
-                                                 iteration_num)
+                chosen_attack(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num)
 
+            # checking if attack succeeded
             if check_attack_output(target, model_results, attack_output):
                 # Attack succeeded; Plotting & Saving results to directory
                 plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImgName,
-                                        attack_output.pred[0],  # [Dx6] -> D is number of detections, 6 is [xmin, ymin, xmax, ymax, p, c]
-                                        results.pred[0], classes=classes, plot_result=True, save_result=True, model_name=model._get_name())
+                                        attack_output.pred[0],
+                                        # [Dx6] -> D is number of detections, 6 is [xmin, ymin, xmax, ymax, p, c]
+                                        results.pred[0], classes=classes, plot_result=True, save_result=True,
+                                        model_name=model._get_name())
                 success = True
                 break
             ####################################################################################################
 
+    # If attack succeeded, the success message is green
     if success:
         success_color = colored(success, 'green')
     else:
+        # If attack succeeded, the success message is red
         success_color = colored(success, 'red')
 
     ending_time = time.time()
@@ -669,7 +668,8 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
     return_attack_args = {'original_img': original_img, 'attacked_img': attacked_img, 'noise': noise,
                           'base_path': base_path, 'outputImgName': outputImgName, 'attack_output': attack_output,
                           'success': success, 'iteration_num': iteration_num, 'time': time, 'results': results,
-                          'output_img_path': base_path + outputImgName + '_' + model._get_name() + imgPath[-4:], 'message': message}
+                          'output_img_path': base_path + outputImgName + '_' + model._get_name() + imgPath[-4:],
+                          'message': message}
     return return_attack_args
 
 
@@ -679,14 +679,14 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
 def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initialization="uniform", results=None,
               imgPath=None, noise_algorithm=None, target='Missing one', image_index=1, max_iter=10):
     return main_attack(model, X=x, y=torch.tensor([y], device=x.device),
-                      epsilon=float("inf"),
-                      max_attack_iter=max_iter,
-                      num_restarts=1,
-                      upper_limit=data_max, lower_limit=data_min,
-                      initialization=initialization,
-                      results=results, imgPath=imgPath, alpha=0.01,
-                      num_classes=80, use_adam=False, multi_targeted=True,
-                      noise_algorithm=noise_algorithm, target=target, image_index=image_index)
+                       epsilon=float("inf"),
+                       max_attack_iter=max_iter,
+                       num_restarts=1,
+                       upper_limit=data_max, lower_limit=data_min,
+                       initialization=initialization,
+                       results=results, imgPath=imgPath, alpha=0.01,
+                       num_classes=80, use_adam=False, multi_targeted=True,
+                       noise_algorithm=noise_algorithm, target=target, image_index=image_index)
 
 
 def verify_with_other_models(args=None):
@@ -703,6 +703,7 @@ def verify_with_other_models(args=None):
     plot_attacked_image_BOX(args['original_img'], args['attacked_img'], args['noise'], args['base_path'],
                             args['outputImgName'], detr_attack_results, args['results'].pred[0], classes=classes_90,
                             plot_result=True, save_result=True, model_name=model._get_name())
+
 
 # for output bounding box post-processing
 def box_cxcywh_to_xyxy(x):
@@ -727,7 +728,8 @@ def post_process_detr(im=None, output=None):
     keep = probas.max(-1).values > 0.9
 
     # convert boxes from [0; 1] to image scales
-    bboxes_scaled = box_cxcywh_to_xyxy(output['pred_boxes'][0, keep])# rescale_bboxes(output['pred_boxes'][0, keep], im.size)
+    bboxes_scaled = box_cxcywh_to_xyxy(
+        output['pred_boxes'][0, keep])  # rescale_bboxes(output['pred_boxes'][0, keep], im.size)
 
     ret_det = []
     for p, (xmin, ymin, xmax, ymax) in zip(probas[keep], bboxes_scaled.tolist()):

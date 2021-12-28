@@ -32,4 +32,4 @@
     max_iter = 10
     max_strength = 255
     target = Missing at least one
-    noise_algorithm = Bernoulli_Bounding_Box_Attack
+    noise_algorithm = Bounding_Box_Attack
