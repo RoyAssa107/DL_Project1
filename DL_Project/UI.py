@@ -68,7 +68,6 @@ def load_model(weights='yolov5s'):
 # produce Adversarial examples on the OD model           #
 ##########################################################
 def main():
-
     config = configparser.ConfigParser()
     config_file_path = 'config.txt'
     config.read(filenames=config_file_path)
@@ -77,6 +76,7 @@ def main():
     target = config['ATTACK']['target']  # Attack target (check config file for further details)
     max_iter = int(config['ATTACK']['max_iter'])  # Maximal number of iterations during the attack
     noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
+    amount = float(config['ATTACK']['amount'])
     path = config['DATASET']['relative_path']
 
     # cpu/gpu configurations
@@ -136,7 +136,7 @@ def main():
         attack_args = {'dataset': attack_dataset, 'model': model, 'x': x, 'max_eps': perturb_eps,
                        'data_min': data_min, 'data_max': data_max, 'y': y, 'results': results,
                        'imgPath': fn, 'noise_algorithm': noise_algorithm, 'target': target,
-                       'image_index': image_index + 1, 'max_iter': max_iter}
+                       'image_index': image_index + 1, 'max_iter': max_iter, 'amount':amount}
         return_args = od_attack(**attack_args)
         print(return_args['message'])
         success = return_args['success']

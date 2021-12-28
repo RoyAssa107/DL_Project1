@@ -13,9 +13,12 @@ from PIL import Image
 from cocoms_class import *
 import matplotlib.pyplot as plt
 import time
+from shapely.geometry import Polygon
+import torchvision.ops.boxes as bops
 
 # import gc
 
+# Normalize image
 transform = T.Compose([
     T.Resize(800),
     T.ToTensor(),
@@ -142,10 +145,8 @@ def attack_on_bounding_box(X, model, normalize, base_path, results, imgPath, img
     result_preds = results.pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
 
     # Extract width and height of all bounding boxes in the image
-    w = []
-    h = []
-    x = []
-    y = []
+    w, h, x, y = [], [], [], []
+
     for box in result_preds:
         w.append(box[2] - box[0])
         h.append(box[3] - box[1])
@@ -245,10 +246,8 @@ def attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, im
     result_preds = results.pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
 
     # Extract width and height of all bounding boxes in the image
-    w = []
-    h = []
-    x = []
-    y = []
+    w, h, x, y = [], [], [], []
+
     for box in result_preds:
         w.append(box[2] - box[0])
         h.append(box[3] - box[1])
@@ -273,11 +272,11 @@ def attack_on_bounding_box_Bernoulli(X, model, normalize, base_path, results, im
         bounding_box_shape = (3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)
         samples = np.random.binomial(size=bounding_box_shape, n=1,
                                      p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from
-                                                  # Bernoulli distribution
+        # Bernoulli distribution
         noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
         bounding_box_noise[0, :, y_min:min(y_max, 640),
         x_min:min(x_max, 1280)] += noise_pixels * samples  # Adding noise to specific pixels inside each bounding box
-                                                           # that the Bernoulli distribution returned 1
+        # that the Bernoulli distribution returned 1
 
     delta1 = torch.from_numpy(bounding_box_noise)  # White noise (torch)
 
@@ -383,10 +382,8 @@ def attack_on_bounding_box_center(X, model, normalize, base_path, results, imgPa
 
     # Extract width and height of all bounding boxes in the image and extract centers of bounding boxes
     center = []  # Each center is in the following format: ((x+w)/2,(y+h)/2)
-    w_hat = []
-    h_hat = []
-    x_hat = []
-    y_hat = []
+    w_hat, h_hat, x_hat, y_hat = [], [], [], []
+
     for box in result_preds:
         w = int(box[2] - box[0])
         h = int(box[3] - box[1])
@@ -487,75 +484,79 @@ def attack_with_chosen_noise_strength(X, model, normalize, base_path, results, i
     return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
 
-# # Function that plots the results received from attack_pgd and saving result's image to directory
-# def plot_attacked_image(original_img, attacked_img, noise, base_path, outputImageName, pred_attack, pred_real):
-#     # Plotting configurations
-#     import matplotlib.pyplot as plt
-#     plt.figure()
-#     matplotlib.use('TkAgg')
-#
-#     # create figure
-#     fig = plt.figure(figsize=(20, 20))
-#
-#     # setting values to rows and column variables
-#     rows = 3
-#     columns = 1
-#
-#     # showing image
-#     # Adds a subplot at the 1st position
-#     fig.add_subplot(rows, columns, 1)
-#     plt.imshow(original_img)
-#     plt.axis('off')
-#     plt.title("Original image")
-#
-#     # Adds a subplot at the 2nd position
-#     fig.add_subplot(rows, columns, 2)
-#     plt.imshow(attacked_img)
-#     plt.axis('off')
-#     plt.title("Perturbed image")
-#
-#     # Adds a subplot at the 3rd position
-#     fig.add_subplot(rows, columns, 3)
-#     plt.imshow(noise)
-#     plt.axis('off')
-#     plt.title("Noise image")
-#
-#     # Save results to output file path specified by basePath + outputImageName without overriding images in directory
-#     # counter = 1
-#     # while(True):
-#     #     newResult = base_path + outputImageName + str(counter) + ".jpg"
-#     #     if not os.path.exists(newResult):
-#     #         plt.savefig(newResult)
-#     #         break
-#     #     else:
-#     #         counter += 1
-#     #
-#
-#     # Save results to output file path specified by basePath + outputImageName without overriding images in directory
-#     save_result_image(plt, base_path, outputImageName)
-#
-#     plt.show()
-#     print()
+# function that calculates IOU of two bounding boxes in the following format:
+# OPTION1:
+#  box: [[x_upper_left, y_upper_left],
+#        [x_upper_right, y_upper_right],
+#        [x_lower_right, y_lower_right],
+#        [x_lower_left, y_lower_right]]
+# OPTION2:
+#  box: [x_min,y_min,x_max,y_max]
+def calculate_iou(box1, box2):
+    ###########
+    # OPTION1 #
+    ###########
+    # box_1 = [[511, 41], [577, 41], [577, 76], [511, 76]]
+    # box_2 = [[544, 59], [610, 59], [610, 94], [544, 94]]
+    # poly_1 = Polygon(box1)
+    # poly_2 = Polygon(box2)
+    # iou = poly_1.intersection(poly_2).area / poly_1.union(poly_2).area
+    # return iou
+
+    ###########
+    # OPTION2 #
+    ###########
+    # box1 = torch.tensor([[511, 41, 577, 76]], dtype=torch.float)
+    # box2 = torch.tensor([[544, 59, 610, 94]], dtype=torch.float)
+    iou = bops.box_iou(box1, box2)
+    return iou
+
+
+############################################################
+# Function that gets the model results and attack results  #
+# Returns True <=> IOU attack was accomplished             #
+############################################################
+def check_IOU_attack(original_preds, attack_preds, IOU_threshold, classes):
+    for i in range(min(original_preds.shape[0], attack_preds.shape[0])):
+        bbox_original = torch.tensor([original_preds[i][:4].tolist()])  # [x_min, y_min, x_max, y_max]
+        bbox_attack = torch.tensor([attack_preds[i][:4].tolist()])  # [x_min, y_min, x_max, y_max]
+
+        ###################################################
+        # TODO: Add option for several/all bounding boxes #
+        ###################################################
+        # check the attack achieved the specified IOU threshold at *ANY* bounding box
+        current_bbox_ratio = calculate_iou(bbox_original, bbox_attack)
+        print(f"#{i} bbox IOU ratio: {current_bbox_ratio}")
+        if current_bbox_ratio <= IOU_threshold:
+            print(colored(f"In #{i} bbox IOU attack succeeded!!! in class: {classes[int(original_preds[i][-1].item())]} ", "green"))
+            print()
+            return True
+
+    return False  # return false if *all* bounding boxes don't have less IOU ratio than the specified IOU_threshold
 
 
 ##############################################################################################
 # Function that gets the model results, attack results and a specified target for the attack #
 # Returns True <=> the target attack was accomplished                                        #
 ##############################################################################################
-def check_attack_output(target, model_results, output):
+def check_attack_output(target, amount, model_results, output, classes):
     original_pred_num = model_results.pred[0].shape[0]
     attack_pred_num = output.pred[0].shape[0]
 
-    if target == 'Missing at least one':
-        return original_pred_num - attack_pred_num >= 1
-
-    elif target == 'Missing all':
-        return attack_pred_num == 0
+    if target == 'Missing Detection':
+        # If the "amount" from config file is larger than the number of detections in the original image
+        # this mean that we would like to miss all detections in the output image
+        missing_detection_count = min(model_results.pred[0].shape[0], amount)
+        return original_pred_num - attack_pred_num >= missing_detection_count
 
     elif target == 'IOU':
         ###################
         # TODO: Check IOU #
         ###################
+        original_preds = model_results.pred[0]
+        attack_preds = output.pred[0]
+        IOU_threshold = amount
+        return check_IOU_attack(original_preds, attack_preds, IOU_threshold, classes=classes)
         pass
 
     elif target == 'False Positive':
@@ -597,11 +598,12 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
                 multi_targeted=True, num_classes=10, use_adam=True,
                 lower_limit=0.0, upper_limit=1.0, normalize=lambda x: x,
                 initialization='uniform', results=None, imgPath=None, noise_algorithm=None,
-                target='Missing at least one', image_index=1):
+                target='Missing at least one', image_index=1, amount=1):
     starting_time = time.time()  # Monitor attack time
     success = False  # check if attack succeeded after max_attack_iter (at most)
     success_color = None
     model_results = results
+
     #######################################################################
     # TODO: change classes_80 according to specified model (yolo/DETR...) #
     #######################################################################
@@ -634,7 +636,7 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
                 chosen_attack(X, model, normalize, base_path, results, imgPath, imgClass, iteration_num)
 
             # checking if attack succeeded
-            if check_attack_output(target, model_results, attack_output):
+            if check_attack_output(target, amount, model_results, attack_output, classes=classes):
                 # Attack succeeded; Plotting & Saving results to directory
                 plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, outputImgName,
                                         attack_output.pred[0],
@@ -677,7 +679,7 @@ def main_attack(model, X, y, epsilon, alpha, num_restarts, max_attack_iter=10,
 # TODO: Get rid of this function!!! Not needed at all #
 #######################################################
 def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initialization="uniform", results=None,
-              imgPath=None, noise_algorithm=None, target='Missing one', image_index=1, max_iter=10):
+              imgPath=None, noise_algorithm=None, target='Missing one', image_index=1, max_iter=10, amount=1):
     return main_attack(model, X=x, y=torch.tensor([y], device=x.device),
                        epsilon=float("inf"),
                        max_attack_iter=max_iter,
@@ -686,11 +688,11 @@ def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initializa
                        initialization=initialization,
                        results=results, imgPath=imgPath, alpha=0.01,
                        num_classes=80, use_adam=False, multi_targeted=True,
-                       noise_algorithm=noise_algorithm, target=target, image_index=image_index)
+                       noise_algorithm=noise_algorithm, target=target, image_index=image_index, amount=amount)
 
 
 def verify_with_other_models(args=None):
-    # load DETR
+    # load DETR OD model
     # repo = 'pytorch/vision'
     # model = torch.hub.load(repo, 'resnet50', pretrained=True)
     model = torch.hub.load('facebookresearch/detr', 'detr_resnet50', pretrained=True)

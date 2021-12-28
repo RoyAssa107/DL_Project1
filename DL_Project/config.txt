@@ -21,15 +21,18 @@
 ############################################################################
 #                          Attack parameters:                              #
 # max_iter:         Max number of iterations in a single image attack      #
-# target:           Missing at least one/All Detection/False Positive/IOU  #
 # max_strength:     Any number in range [0,255]                            #
+# target:           Missing Detection/False Positive/IOU                   #
+# amount:           Any number as a parameter of the target attack         #
+#                   For IOU attack the number is in range [0,1]            #
 # noise_algorithm:  Chosen_Noise_Attack/White_Noise_Attack/                #
-#                    Bounding_Box_Attack/Bounding_Box_Center_Attack/       #
-#                    Bernoulli_Bounding_Box_Attack/Canny_Bernoulli_Attack  #
+#                   Bounding_Box_Attack/Bounding_Box_Center_Attack/        #
+#                   Bernoulli_Bounding_Box_Attack/Canny_Bernoulli_Attack   #
 ############################################################################
 
 [ATTACK]
     max_iter = 10
     max_strength = 255
-    target = Missing at least one
-    noise_algorithm = Bounding_Box_Attack
+    target = IOU
+    amount = 0.7
+    noise_algorithm = Bernoulli_Bounding_Box_Attack
