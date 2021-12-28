@@ -60,7 +60,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
         plt.gca().add_patch(rect)
         # h = box[3] - box[1]
 
-        plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1]) + 1] + f", {round(box[-2].item(), 3)}", c='black',
+        plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1])] + f", {round(box[-2].item(), 3)}", c='black',
                  backgroundcolor='g')
         # plt.text(x=box[0], y=box[1], s=classes[int(box[-1]) + 1])
 
@@ -76,7 +76,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
                              fill=False)
         plt.gca().add_patch(rect)
         # h = box[3] - box[1]
-        plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1]) + 1] + f", {round(box[-2].item(), 3)}", c='black',
+        plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1])] + f", {round(box[-2].item(), 3)}", c='black',
                  backgroundcolor='g')
 
     fig.add_subplot(rows, cols, 3)
@@ -728,8 +728,8 @@ def post_process_detr(im=None, output=None):
     keep = probas.max(-1).values > 0.9
 
     # convert boxes from [0; 1] to image scales
-    bboxes_scaled = box_cxcywh_to_xyxy(
-        output['pred_boxes'][0, keep])  # rescale_bboxes(output['pred_boxes'][0, keep], im.size)
+    bboxes_scaled = box_cxcywh_to_xyxy(output['pred_boxes'][0, keep])
+    rescale_bboxes(output['pred_boxes'][0, keep], im.size)
 
     ret_det = []
     for p, (xmin, ymin, xmax, ymax) in zip(probas[keep], bboxes_scaled.tolist()):
