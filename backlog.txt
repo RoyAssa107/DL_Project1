@@ -1,0 +1,10 @@
+Roy:
+  1. Continue with attacks
+  2. Plot bounding box text with fixed size (thickness)
+  
+Avraham:
+  1. Add support to SSD, RetinaNet
+  
+Additional mission:
+  1. Add support to cutomized model (user's model)
+  2. Add support to command line (with arguments)
