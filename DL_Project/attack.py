@@ -20,8 +20,8 @@ import torchvision.ops.boxes as bops
 
 # Normalize image
 transform = T.Compose([
-    T.Resize(800),
-    T.ToTensor(),
+    # T.Resize(480),
+    # T.ToTensor(),
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
@@ -75,8 +75,7 @@ def plot_attacked_image_BOX(original_img, attacked_img, noise, base_path, output
     for box in pred_attack:
         # Create new bounding box over detection
         # x,y,w,h
-        rect = pac.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], linewidth=1, edgecolor='r',
-                             fill=False)
+        rect = pac.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], linewidth=1, edgecolor='r', fill=False)
         plt.gca().add_patch(rect)
         # h = box[3] - box[1]
         plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1])] + f", {round(box[-2].item(), 3)}", c='black',
@@ -581,7 +580,7 @@ def check_attack_output(target, amount, model_results, output, classes):
         # If the "amount" from config file is larger than the number of detections in the original image
         # this means that we would like to miss all detections in the output image
         missing_detection_count = min(model_results.pred[0].shape[0], amount)
-        return original_pred_num - attack_pred_num >= missing_detection_count
+        return original_pred_num - attack_pred_num, original_pred_num - attack_pred_num >= missing_detection_count
 
     elif target == 'IOU':
         ###################
@@ -635,10 +634,10 @@ def get_message(**msg_args):
         ###    1. Success: {msg_args["success_color"]}   
         ###    2. Noise algorithm: {msg_args["noise_algorithm"]}
         ###    3. Attack target: {msg_args["target"]}
-        ###    4. Missing detection attack success rate: {msg_args["attack_pred"].shape[0]/msg_args["result_pred"].shape[0]}                                                                                            
+        ###    4. Missing detection attack success rate: {msg_args["attack_pred"].shape[0]/msg_args["original_pred"].shape[0]}                                                                                            
         ###    4. Image number in directory: {msg_args["image_index"]}                                    
         ###    5. Total number of iterations: {msg_args["iteration_num"]}                                    
-        ###    6. Total number of detections in original image: {msg_args["results_pred"].shape[0]}       
+        ###    6. Total number of detections in original image: {msg_args["original_pred"].shape[0]}       
         ###    7. Total number of detections in attacked image: {msg_args["attack_pred"].shape[0]} 
         ###    8. Total duration: {round(msg_args["ending_time"] - msg_args["starting_time"], 3)}s                       
         ################################################################
@@ -792,14 +791,26 @@ def verify_with_other_models(args=None):
     # repo = 'pytorch/vision'
     # model = torch.hub.load(repo, 'resnet50', pretrained=True)
     model = torch.hub.load('facebookresearch/detr', 'detr_resnet50', pretrained=True)
-    im = Image.open(args['output_img_path'])
-    img = transform(im).unsqueeze(0)
+    # org_im = Image.open(os.path.join(args['base_path'], os.listdir(args['base_path'])[0]))
+    org_im = args['original_img']
+    org_img = transform(org_im.permute(2, 0, 1))
+    org_img = org_img.unsqueeze(0)
 
-    # propagate through the model
-    outputs = model(img)
+    outputs = model.float()(org_img.float())
+
+    # org_img = transform(org_im).unsqueeze(0)
+    # outputs = model(org_img)
+    detr_org_results = post_process_detr(im=org_im, output=outputs)
+
+    # im = Image.open(args['output_img_path'])
+
+    im = args['attacked_img']
+    img = transform(im.permute(2, 0, 1))
+    img = img.unsqueeze(0)
+    outputs = model.float()(img.float())
     detr_attack_results = post_process_detr(im=im, output=outputs)
     plot_attacked_image_BOX(args['original_img'], args['attacked_img'], args['noise'], args['base_path'],
-                            args['outputImgName'], detr_attack_results, args['results'].pred[0], classes=classes_90,
+                            args['outputImgName'], detr_attack_results, detr_org_results, classes=classes_90,
                             plot_result=True, save_result=True, model_name=model._get_name())
 
 
@@ -812,7 +823,7 @@ def box_cxcywh_to_xyxy(x):
 
 
 def rescale_bboxes(out_bbox, size):
-    img_w, img_h = size
+    img_h, img_w, _ = size
     b = box_cxcywh_to_xyxy(out_bbox)
     b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
     return b
@@ -823,11 +834,10 @@ def post_process_detr(im=None, output=None):
 
     # keep only predictions with 0.7+ confidence
     probas = output['pred_logits'].softmax(-1)[0, :, :-1]
-    keep = probas.max(-1).values > 0.9
+    keep = probas.max(-1).values > 0.75
 
     # convert boxes from [0; 1] to image scales
-    bboxes_scaled = box_cxcywh_to_xyxy(output['pred_boxes'][0, keep])
-    rescale_bboxes(output['pred_boxes'][0, keep], im.size)
+    bboxes_scaled = rescale_bboxes(output['pred_boxes'][0, keep], im.size())
 
     ret_det = []
     for p, (xmin, ymin, xmax, ymax) in zip(probas[keep], bboxes_scaled.tolist()):

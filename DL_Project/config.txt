@@ -8,7 +8,7 @@
 [GENERAL]
     device = cpu
     seed = 0
-    model = yolov5s
+    model = yolov5x
 
 ##########################################################################
 #                          Dataset parameters:                           #
@@ -33,6 +33,6 @@
 [ATTACK]
     max_iter = 10
     max_strength = 255
-    target = IOU
-    amount = 0.7
+    target = Missing Detection
+    amount = 1
     noise_algorithm = Bernoulli_Bounding_Box_Attack

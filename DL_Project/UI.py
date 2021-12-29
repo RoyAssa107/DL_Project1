@@ -20,7 +20,7 @@ from attack import od_attack, verify_with_other_models
 # Function that loads a given model specified by model_name
 def load_model(weights='yolov5s'):
     model = None
-    if weights == 'yolov5s':
+    if 'yolo' in weights.lower():
         model = torch.hub.load('ultralytics/yolov5', weights, device='cpu')
     elif weights == 'ssd':
         return 0
