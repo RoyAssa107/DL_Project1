@@ -28,6 +28,10 @@ transform = T.Compose([
 np.random.seed(42)  # For reproducibility
 
 
+###############################################################
+# TODO: Added support in the attack_OOP.py file to OOP attack #
+###############################################################
+
 # Function that saves results image to a given base path && the corresponding output image name
 def save_result_image(plt1, base_path, outputImageName, suffix='', model_name=None):
     if suffix != '':
@@ -634,7 +638,7 @@ def get_message(**msg_args):
         ###    1. Success: {msg_args["success_color"]}   
         ###    2. Noise algorithm: {msg_args["noise_algorithm"]}
         ###    3. Attack target: {msg_args["target"]}
-        ###    4. Missing detection attack success rate: {msg_args["attack_pred"].shape[0]/msg_args["original_pred"].shape[0]}                                                                                            
+        ###    4. Missing detection attack success rate: {msg_args["attack_pred"].shape[0] / msg_args["original_pred"].shape[0]}                                                                                            
         ###    4. Image number in directory: {msg_args["image_index"]}                                    
         ###    5. Total number of iterations: {msg_args["iteration_num"]}                                    
         ###    6. Total number of detections in original image: {msg_args["original_pred"].shape[0]}       
@@ -650,7 +654,7 @@ def get_message(**msg_args):
         ###    2. Noise algorithm: {msg_args["noise_algorithm"]}
         ###    3. Attack target: {msg_args["target"]}         
         ###    3. IOU threshold: {msg_args["amount"]}      
-        ###    4. IOU attack success rate: {100 * msg_args["num_FP_or_IOU_Misses"]/msg_args["attack_pred"].shape[0]}%                                           
+        ###    4. IOU attack success rate: {100 * msg_args["num_FP_or_IOU_Misses"] / msg_args["attack_pred"].shape[0]}%                                           
         ###    5. Image number in directory: {msg_args["image_index"]}                                    
         ###    6. Total number of iterations: {msg_args["iteration_num"]}                                    
         ###    7. Total duration: {round(msg_args["ending_time"] - msg_args["starting_time"], 3)}s                       
@@ -664,7 +668,7 @@ def get_message(**msg_args):
         ###    1. Success: {msg_args["success_color"]}   
         ###    2. Noise algorithm: {msg_args["noise_algorithm"]}
         ###    3. Attack target: {msg_args["target"]}
-        ###    4. False-Positive attack success rate: {100 * msg_args["num_FP_or_IOU_Misses"]/msg_args["attack_pred"].shape[0]}%                                                 
+        ###    4. False-Positive attack success rate: {100 * msg_args["num_FP_or_IOU_Misses"] / msg_args["attack_pred"].shape[0]}%                                                 
         ###    4. Image number in directory: {msg_args["image_index"]}                                    
         ###    5. Total number of iterations: {msg_args["iteration_num"]}                                    
         ###    6. Total duration: {round(msg_args["ending_time"] - msg_args["starting_time"], 3)}s                       

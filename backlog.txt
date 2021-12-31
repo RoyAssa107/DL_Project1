@@ -6,5 +6,6 @@ Avraham:
   1. Add support to SSD, RetinaNet
   
 Additional mission:
-  1. Add support to cutomized model (user's model)
-  2. Add support to command line (with arguments)
+  1. Avraham check if you want to split between output args and config args (in attack_OOP.py)
+  2. Add support to customized model (user's model)
+  3. Add support to command line (with arguments)
