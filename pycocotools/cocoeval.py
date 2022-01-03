@@ -79,6 +79,7 @@ class COCOeval:
         self.ious = {}                      # ious between all gts and dts
         self.fps = {}                       # dict of fps
         self.fns = {}                       # dict of fns
+        self.iou_thr = .5
         if not cocoGt is None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
@@ -336,11 +337,13 @@ class COCOeval:
             }
 
         if p.compute_fns:
-            fns_gt_bool = np.logical_and(np.logical_not(gtIg), np.logical_not(gtm[0, :]))
+            iou_idx = np.where(self.params.iouThrs == self.iou_thr)[0]
+            fns_gt_bool = np.logical_and(np.logical_not(gtIg), np.logical_not(gtm[iou_idx, :]))[0]
             fns_gt_ids = [g['id'] for i, g in enumerate(gt) if fns_gt_bool[i]]
             result_dict.update({'fnsIds': fns_gt_ids})
         if p.compute_fps:
-            fps_dt_bool = np.logical_and(np.logical_not(dtIg[0, :]), np.logical_not(dtm[0, :]))
+            iou_idx = np.where(self.params.iouThrs == self.iou_thr)[0]
+            fps_dt_bool = np.logical_and(np.logical_not(dtIg[0, :]), np.logical_not(dtm[iou_idx, :]))[0]
             fps_dt_ids = [d['id'] for i, d in enumerate(dt) if fps_dt_bool[i]]
             result_dict.update({'fpsIds': fps_dt_ids})
 
@@ -537,7 +540,7 @@ class Params:
         self.imgIds = []
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(.5, 0.95, int(np.round((0.95 - .5) / .05) + 1), endpoint=True)
+        self.iouThrs = np.linspace(.1, 0.95, int(np.round((0.95 - .1) / .05) + 1), endpoint=True)
         self.recThrs = np.linspace(.0, 1.00, int(np.round((1.00 - .0) / .01) + 1), endpoint=True)
         self.maxDets = [1, 10, 100]
         self.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 32 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]

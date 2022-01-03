@@ -31,8 +31,8 @@
 ############################################################################
 
 [ATTACK]
-    max_iter = 10
+    max_iter = 100
     max_strength = 255
-    target = Missing Detection
+    target = IOU
     amount = 1
     noise_algorithm = Bernoulli_Bounding_Box_Attack

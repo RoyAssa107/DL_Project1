@@ -10,11 +10,9 @@ import numpy as np
 from termcolor import colored
 import torchvision.transforms as T
 from torchvision.models.detection import retinanet_resnet50_fpn
-from PIL import Image
 from cocoms_class import *
 import matplotlib.pyplot as plt
 import time
-from shapely.geometry import Polygon
 import torchvision.ops.boxes as bops
 from pycocotools import coco, cocoeval
 
@@ -27,7 +25,7 @@ transform = T.Compose([
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-np.random.seed(42)  # For reproducibility
+np.random.seed(0)  # For reproducibility
 
 
 ###################################################################
@@ -234,8 +232,7 @@ class Attack:
             x.append(box[0])
             y.append(box[1])
 
-        new_preds = [[x[i], y[i], w[i], h[i], result_preds[i, 4], result_preds[i, 5]] for i in
-                     range(len(w))]  # [x_min,y_min,w,h,prob,c]
+        # new_preds = [[x[i], y[i], w[i], h[i], result_preds[i, 4], result_preds[i, 5]] for i in range(len(w))]  # [x_min,y_min,w,h,prob,c]
 
         # bounding_box_noise = np.random.random((1, 3, 640, 1280)) * (strength)
         bounding_box_noise = np.zeros(X.shape)
@@ -256,7 +253,7 @@ class Attack:
         inputs1 = normalize(X + delta1)
         original_img = X[0].permute(1, 2, 0)
         attacked_img = inputs1[0].permute(1, 2, 0)
-        noise1 = attacked_img - original_img
+        # noise1 = attacked_img - original_img
 
         # Rescale noise pixels
         if delta1.min() < 0:
@@ -335,8 +332,7 @@ class Attack:
             x.append(box[0])
             y.append(box[1])
 
-        new_preds = [[x[i], y[i], w[i], h[i], result_preds[i, 4], result_preds[i, 5]] for i in
-                     range(len(w))]  # [x_min,y_min,w,h,prob,c]
+        # new_preds = [[x[i], y[i], w[i], h[i], result_preds[i, 4], result_preds[i, 5]] for i in range(len(w))]  # [x_min,y_min,w,h,prob,c]
 
         # bounding_box_noise = np.random.random((1, 3, 640, 1280)) * (strength)
         bounding_box_noise = np.zeros(X.shape)
@@ -365,7 +361,7 @@ class Attack:
         # inputs1 = normalize(X + delta1)
         original_img = X[0].permute(1, 2, 0)
         attacked_img = inputs1[0].permute(1, 2, 0)
-        noise1 = attacked_img - original_img
+        # noise1 = attacked_img - original_img
 
         # Rescale noise pixels
         if delta1.min() < 0:
@@ -427,26 +423,27 @@ class Attack:
         new_noised_image[0] += noised_edges.permute(2, 0, 1)
         inputs1 = new_noised_image
 
-        delta1 = torch.from_numpy(noised_edges)  # Convert from numpy to torch tensor
+        # delta1 = torch.from_numpy(noised_edges)  # Convert from numpy to torch tensor
 
         original_img = X[0].permute(1, 2, 0)
         attacked_img = inputs1[0].permute(1, 2, 0)
-        noise = attacked_img - original_img
+        # noise = attacked_img - original_img
 
         # Rescale noise pixels
+        '''
         if delta1.min() < 0:
             noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(
                 delta1.min())) * 255  # normalize noise to fit inside range [0,255]
         else:
             # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
             noise1 = (delta1[0].permute(1, 2, 0)) / 256
-
+        '''
         original_img1 = original_img / 255
         attacked_img1 = attacked_img / 255
         output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the noised image
 
         noise1 = noised_edges / 255
-        X2 = cv2.cvtColor(X1, cv2.COLOR_BGR2RGB)
+        # X2 = cv2.cvtColor(X1, cv2.COLOR_BGR2RGB)
         # plot_attacked_image_BOX(X2, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
         #                         results.pred[0])  # plotting results and save them to output file
         # print()
@@ -528,12 +525,14 @@ class Attack:
         noise1 = attacked_img - original_img
 
         # Rescale noise pixels
+        '''
         if delta1.min() < 0:
             # normalize noise to fit inside range [0,255]
             noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
         else:
             # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
             noise1 = (delta1[0].permute(1, 2, 0)) / 256
+        '''
 
         original_img1 = original_img / 255
         attacked_img1 = attacked_img / 255
@@ -550,7 +549,7 @@ class Attack:
     # Function that implements a chosen noise attack on the   #
     # specified image, with current state in iteration        #
     ###########################################################
-    def attack_with_chosen_noise_strength(self, iteration_num):
+    def attack_with_chosen_noise_strength(self):
         # Attempt to add specific noise (with specified strength)
         strength = 150  # Noising strength (0-minimal, 255-maximal)
         outputImgName = "\\" + self.attack_config_args["imgPath"].split('.')[0].split('\\')[-1]  # Get pure name of
@@ -704,24 +703,32 @@ class Attack:
         cocoGt = coco.COCO(gt)
         cocoDt = coco.COCO(dt)
         E = cocoeval.COCOeval(cocoGt, cocoDt)
+        E.iou_thr = .5
         E.evaluate()  # run per image evaluation
-        #  E.accumulate();              # accumulate per image results
-        #  E.summarize();               # display summary metrics of results
+        fns_05 = E.fns
+        fps_05 = E.fps
 
         if target == 'Missing Detection':
             # If the "amount" from config file is larger than the number of detections in the original image
             # this means that we would like to miss all detections in the output image
             missing_detection_count = min(original_preds.shape[0], amount)
-            self.attack_config_args["success"] = original_pred_num - attack_pred_num >= missing_detection_count
-            return original_pred_num - attack_pred_num, self.attack_config_args["success"]
+            # missing detection is true if len(E.fns) > 0
+            # missing all detection -> len(gt) == len(E.fns)
+            self.attack_config_args["success"] = len(fns_05) > 0
+            return len(fns_05), self.attack_config_args["success"]
 
         elif target == 'IOU':
-            IOU_threshold = amount
-            return self.check_IOU_attack(IOU_threshold)
-            pass
+            E.iou_thr = .2
+            E = cocoeval.COCOeval(cocoGt, cocoDt)
+            E.evaluate()  # run per image evaluation
+            fns_02 = E.fns
+            fps_02 = E.fps
+            self.attack_config_args["success"] = len(fns_05) != len(fns_02)
+            return len(fns_05) - len(fns_02), self.attack_config_args["success"]
 
         elif target == 'False Positive':
-            return self.check_False_Positive_attack()
+            self.attack_config_args["success"] = len(fps_05) > 0
+            return len(fps_05), self.attack_config_args["success"]
 
     ####################################################
     # Function that returns the latest Test directory  #
