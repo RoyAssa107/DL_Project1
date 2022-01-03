@@ -80,19 +80,12 @@ def main():
         X = X.permute(0, 3, 1, 2)  # Permuting img to be in shape: (1,3,780,1280) for Zidane
         X = X[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)
 
-        # logit_pred = model_ori(x)[0]
-        # logit_pred = results.pred
-        # y_pred = 4  # For Zidane img, we have 4 objects; 2 persons, 2 tie
-        y = results.pred[0].shape[0]
-
         # Prepare all kwargs for the attack
-        attack_config_args = {'model': model, 'x': X, 'results': results, 'imgPath': fn, 'noise_algorithm': noise_algorithm,
-                              'target': target, 'image_index': image_index + 1, 'max_iter': max_iter, 'amount': amount,
+        attack_config_args = {'model': model, 'x': X, 'results': results, 'imgPath': fn,                               'target': target, 'image_index': image_index + 1, 'max_iter': max_iter, 'amount': amount,
                               'classes': classes, 'normalize': lambda x: x, 'base_path': None,
                               "success_color": None, "noise_algorithm": noise_algorithm,
-                              "target": target, "image_index": image_index + 1, "iteration_num": None,
-                              "original_pred": None, "attack_pred": None, "starting_time": None,
-                              "ending_time": None, "amount": amount, "num_FP_or_IOU_Misses": None,
+                              "iteration_num": None, "original_pred": None, "attack_pred": None, "starting_time": None,
+                              "ending_time": None, "num_FP_or_IOU_Misses": None,
                               'outputImgName': None, 'original_img': None, 'attacked_img': None
                               }
         attack_obj = Attack(**attack_config_args)

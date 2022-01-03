@@ -9,6 +9,7 @@ import torch
 import numpy as np
 from termcolor import colored
 import torchvision.transforms as T
+from torchvision.models.detection import retinanet_resnet50_fpn
 from PIL import Image
 from cocoms_class import *
 import matplotlib.pyplot as plt
@@ -792,8 +793,7 @@ def od_attack(dataset, model, x, max_eps, data_min, data_max, y=None, initializa
 
 def verify_with_other_models(args=None):
     # load DETR OD model
-    # repo = 'pytorch/vision'
-    # model = torch.hub.load(repo, 'resnet50', pretrained=True)
+
     model = torch.hub.load('facebookresearch/detr', 'detr_resnet50', pretrained=True)
     # org_im = Image.open(os.path.join(args['base_path'], os.listdir(args['base_path'])[0]))
     org_im = args['original_img']
@@ -816,6 +816,11 @@ def verify_with_other_models(args=None):
     plot_attacked_image_BOX(args['original_img'], args['attacked_img'], args['noise'], args['base_path'],
                             args['outputImgName'], detr_attack_results, detr_org_results, classes=classes_90,
                             plot_result=True, save_result=True, model_name=model._get_name())
+
+    # load RetinaNet OD model
+    model = retinanet_resnet50_fpn(pretrained=True)
+    model.eval()
+    predictions = model(img)
 
 
 # for output bounding box post-processing

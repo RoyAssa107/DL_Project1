@@ -10,12 +10,10 @@ import socket
 import time
 import gc
 import numpy as np
-
 import torch
 from termcolor import colored
 
 from attack import od_attack, verify_with_other_models
-
 
 # Function that loads a given model specified by model_name
 def load_model(weights='yolov5s'):
@@ -136,7 +134,7 @@ def main():
         attack_args = {'dataset': attack_dataset, 'model': model, 'x': x, 'max_eps': perturb_eps,
                        'data_min': data_min, 'data_max': data_max, 'y': y, 'results': results,
                        'imgPath': fn, 'noise_algorithm': noise_algorithm, 'target': target,
-                       'image_index': image_index + 1, 'max_iter': max_iter, 'amount': amount}
+                       'image_index': image_index + 1, 'max_iter': max_iter, 'amount':amount}
         return_args = od_attack(**attack_args)
         print(return_args['message'])
         success = return_args['success']

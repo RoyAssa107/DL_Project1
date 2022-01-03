@@ -9,12 +9,14 @@ import torch
 import numpy as np
 from termcolor import colored
 import torchvision.transforms as T
+from torchvision.models.detection import retinanet_resnet50_fpn
 from PIL import Image
 from cocoms_class import *
 import matplotlib.pyplot as plt
 import time
 from shapely.geometry import Polygon
 import torchvision.ops.boxes as bops
+from pycocotools import coco, cocoeval
 
 # import gc
 
@@ -47,8 +49,7 @@ class Attack:
         # The first part includes parameters drawn from config.txt file
         # The second part includes parameters which hold the attack output
         self.attack_config_args = {'model': None, 'x': None, 'results': None, 'base_path': None,
-                                   'imgPath': None, 'noise_algorithm': None, 'target': None, 'image_index': None,
-                                   'max_iter': None, 'amount': None, 'classes': None, 'normalize': lambda x: x,
+                                   'imgPath': None, 'max_iter': None, 'classes': None, 'normalize': lambda x: x,
                                    "success_color": None, "noise_algorithm": None,
                                    "target": None, "image_index": None, "iteration_num": None, "original_pred": None,
                                    "attack_pred": None, "starting_time": None, "ending_time": None, "amount": None,
@@ -698,6 +699,15 @@ class Attack:
         original_pred_num = original_preds.shape[0]
         attack_pred_num = attack_preds.shape[0]
 
+        # TODO: Avraham changes
+        gt, dt = self.create_gt_dt_files(original_preds, attack_preds)
+        cocoGt = coco.COCO(gt)
+        cocoDt = coco.COCO(dt)
+        E = cocoeval.COCOeval(cocoGt, cocoDt)
+        E.evaluate()  # run per image evaluation
+        #  E.accumulate();              # accumulate per image results
+        #  E.summarize();               # display summary metrics of results
+
         if target == 'Missing Detection':
             # If the "amount" from config file is larger than the number of detections in the original image
             # this means that we would like to miss all detections in the output image
@@ -898,6 +908,11 @@ class Attack:
         self.attack_config_args["attack_pred"] = detr_attack_pred
         self.plot_attacked_image_BOX(plot_result=True, save_result=True)
 
+        # load RetinaNet OD model
+        model = retinanet_resnet50_fpn(pretrained=True)
+        model.eval()
+        predictions = model(img)
+
     ########################################################
     # Function that outputs a bounding box post-processing #
     ########################################################
@@ -937,3 +952,38 @@ class Attack:
             ret_det.append([xmin, ymin, xmax, ymax, pr, cl_idx])
 
         return torch.Tensor(ret_det)
+
+    def create_gt_dt_files(self, gt, dt):
+        gt_dict = dict()
+        dt_dict = dict()
+        gt_dict['categories'] = categories['categories']
+        image = dict()
+        image['id'] = 0
+        image['height'], image['width'], _ = self.attack_config_args['attacked_img'].size()
+        image['filename'] = self.attack_config_args["imgPath"]
+        gt_dict['images'] = [image]
+        gt_dict['annotations'] = []
+        for ann_idx, g in enumerate(gt):
+            ann = dict()
+            ann['id'] = ann_idx + 1
+            ann['image_id'] = 0
+            ann['bbox'] = [float(b) for b in g[:4]]
+            ann['category_id'] = int(g[-1])
+            ann['iscrowd'] = 0
+            ann['area'] = int((g[2] - g[0]) * (g[3] - g[1]))
+            gt_dict['annotations'].append(ann)
+
+        dt_dict['categories'] = categories['categories']
+        dt_dict['images'] = [image]
+        dt_dict['annotations'] = []
+        for ann_idx, d in enumerate(dt):
+            ann = dict()
+            ann['id'] = ann_idx + 1
+            ann['image_id'] = 0
+            ann['bbox'] = [float(b) for b in d[:4]]
+            ann['category_id'] = int(d[-1])
+            ann['score'] = float(d[4])
+            ann['area'] = int((d[2] - d[0]) * (d[3] - d[1]))
+            dt_dict['annotations'].append(ann)
+
+        return gt_dict, dt_dict
