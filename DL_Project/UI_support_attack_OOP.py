@@ -47,6 +47,8 @@ def main():
     noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
     amount = float(config['ATTACK']['amount'])
     path = config['DATASET']['relative_path']
+    conf_level_yolo = float(config['ATTACK']['conf_yolo'])
+    iou_thresh_yolo = float(config['ATTACK']['iou_thresh_yolo'])
 
     # cpu/gpu configurations
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -58,6 +60,8 @@ def main():
     model, is_yolo = load_model(model_name)
     if is_yolo:
         classes = classes_80
+        model.conf_thres = conf_level_yolo
+        model.iou_thres = iou_thresh_yolo
     else:
         classes = classes_90
     is_single_image = not os.path.isdir(path)
@@ -81,7 +85,8 @@ def main():
         X = X[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)
 
         # Prepare all kwargs for the attack
-        attack_config_args = {'model': model, 'x': X, 'results': results, 'imgPath': fn,                               'target': target, 'image_index': image_index + 1, 'max_iter': max_iter, 'amount': amount,
+        attack_config_args = {'model': model, 'x': X, 'results': results, 'imgPath': fn,
+                              'target': target, 'image_index': image_index + 1, 'max_iter': max_iter, 'amount': amount,
                               'classes': classes, 'normalize': lambda x: x, 'base_path': None,
                               "success_color": None, "noise_algorithm": noise_algorithm,
                               "iteration_num": None, "original_pred": None, "attack_pred": None, "starting_time": None,

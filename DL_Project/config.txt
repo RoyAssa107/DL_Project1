@@ -9,6 +9,8 @@
     device = cpu
     seed = 0
     model = yolov5n
+    conf_yolo = 0.2
+    iou_thresh_yolo = 0.5
 
 ##########################################################################
 #                          Dataset parameters:                           #
@@ -31,7 +33,7 @@
 ############################################################################
 
 [ATTACK]
-    max_iter = 10
+    max_iter = 100
     max_strength = 255
     target = IOU
     amount = 1
