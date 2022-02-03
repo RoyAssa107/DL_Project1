@@ -10,6 +10,7 @@ import copy
 
 def compute_IoU(pred_box, gt_box):
     # Rescale to our convention
+    # convert to [xmin, ymin, xmax, ymax]
     pred_box = [pred_box[0], pred_box[1], pred_box[0] + pred_box[2], pred_box[1] + pred_box[3]]
     gt_box = [gt_box[0], gt_box[1], gt_box[0] + gt_box[2], gt_box[1] + gt_box[3]]
 
@@ -199,8 +200,7 @@ class COCOeval:
                          for imgId in p.imgIds
                          ]
         if p.compute_fps:
-            fps_ids = [img['fpsIds'] for img in self.evalImgs if img is not None and 'fpsIds' in img and not np.any(img[
-                                                                                                                        'dtIgnore'])]  # in dtIgnore we have 20 entries for all the IoU values, but we want to look at the first value
+            fps_ids = [img['fpsIds'] for img in self.evalImgs if img is not None and 'fpsIds' in img and not np.any(img['dtIgnore'])]  # in dtIgnore we have 20 entries for all the IoU values, but we want to look at the first value
             fps_ids_flat = [fp_id for fps_ids_list in fps_ids for fp_id in fps_ids_list]
             fps_ids_flat = set(fps_ids_flat)
             fps = self.cocoDt.loadAnns(fps_ids_flat)
@@ -383,12 +383,12 @@ class COCOeval:
         }
 
         if p.compute_fns:
-            iou_idx = np.where(self.params.iouThrs == self.iou_thr)[0]
+            iou_idx = np.where(np.float32(self.params.iouThrs) == self.iou_thr)[0]
             fns_gt_bool = np.logical_and(np.logical_not(gtIg), np.logical_not(gtm[iou_idx, :]))[0]
             fns_gt_ids = [g['id'] for i, g in enumerate(gt) if fns_gt_bool[i]]
             result_dict.update({'fnsIds': fns_gt_ids})
         if p.compute_fps:
-            iou_idx = np.where(self.params.iouThrs == self.iou_thr)[0]
+            iou_idx = np.where(np.float32(self.params.iouThrs) == self.iou_thr)[0]
             fps_dt_bool = np.logical_and(np.logical_not(dtIg[0, :]), np.logical_not(dtm[iou_idx, :]))[0]
             fps_dt_ids = [d['id'] for i, d in enumerate(dt) if fps_dt_bool[i]]
             result_dict.update({'fpsIds': fps_dt_ids})

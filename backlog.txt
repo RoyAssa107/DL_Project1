@@ -1,12 +1,12 @@
 Roy:
-  1. Continue with attacks
-  2. Plot bounding box text with fixed size (thickness)
-  
+  1. continue with the attack - success with "good" IoU (lower then .75)
+  2. set conf threshold as param in config:
+    for Yolo is model.conf
+
+
 Avraham:
   1. Add support to SSD, RetinaNet
   
 Additional mission:
-  1. Avraham check if you want to split between output args and config args (in attack_OOP.py)
   2. Add support to customized model (user's model)
   3. Add support to command line (with arguments)
-  4. Integrate with cocopytools for IoU attack and additional tasks.

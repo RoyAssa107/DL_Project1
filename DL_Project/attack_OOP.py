@@ -703,10 +703,10 @@ class Attack:
         cocoGt = coco.COCO(gt)
         cocoDt = coco.COCO(dt)
         E = cocoeval.COCOeval(cocoGt, cocoDt)
-        E.iou_thr = .5
+        E.iou_thr = .95
         E.evaluate()  # run per image evaluation
-        fns_05 = E.fns
-        fps_05 = E.fps
+        fns_upper = E.fns
+        fps_upper = E.fps
 
         if target == 'Missing Detection':
             # If the "amount" from config file is larger than the number of detections in the original image
@@ -714,21 +714,21 @@ class Attack:
             missing_detection_count = min(original_preds.shape[0], amount)
             # missing detection is true if len(E.fns) > 0
             # missing all detection -> len(gt) == len(E.fns)
-            self.attack_config_args["success"] = len(fns_05) > 0
-            return len(fns_05), self.attack_config_args["success"]
+            self.attack_config_args["success"] = len(fns_upper) > 0
+            return len(fns_upper), self.attack_config_args["success"]
 
-        elif target == 'IOU':
+        elif target == 'IOU':  # IoU
             E.iou_thr = .2
             E = cocoeval.COCOeval(cocoGt, cocoDt)
             E.evaluate()  # run per image evaluation
-            fns_02 = E.fns
-            fps_02 = E.fps
-            self.attack_config_args["success"] = len(fns_05) != len(fns_02)
-            return len(fns_05) - len(fns_02), self.attack_config_args["success"]
+            fns_lower = E.fns
+            fps_lower = E.fps
+            self.attack_config_args["success"] = len(fns_upper) != len(fns_lower)  # fns_lower > fns_upper -> attack succeeded
+            return len(fns_upper) - len(fns_lower), self.attack_config_args["success"]
 
         elif target == 'False Positive':
-            self.attack_config_args["success"] = len(fps_05) > 0
-            return len(fps_05), self.attack_config_args["success"]
+            self.attack_config_args["success"] = len(fps_upper) > 0
+            return len(fps_upper), self.attack_config_args["success"]
 
     ####################################################
     # Function that returns the latest Test directory  #
@@ -947,7 +947,7 @@ class Attack:
 
         # keep only predictions with 0.7+ confidence
         probas = output['pred_logits'].softmax(-1)[0, :, :-1]
-        keep = probas.max(-1).values > 0.75
+        keep = probas.max(-1).values > 0.75  # TODO: set this as parameter
 
         # convert boxes from [0; 1] to image scales
         bboxes_scaled = self.rescale_bboxes(output['pred_boxes'][0, keep], im.size())
@@ -974,7 +974,7 @@ class Attack:
             ann = dict()
             ann['id'] = ann_idx + 1
             ann['image_id'] = 0
-            ann['bbox'] = [float(b) for b in g[:4]]
+            ann['bbox'] = [float(g[0]), float(g[1]), float(g[2]) - float(g[0]), float(g[3]) - float(g[1])]  # format: [xmin, ymin, h, w]
             ann['category_id'] = int(g[-1])
             ann['iscrowd'] = 0
             ann['area'] = int((g[2] - g[0]) * (g[3] - g[1]))
@@ -987,7 +987,7 @@ class Attack:
             ann = dict()
             ann['id'] = ann_idx + 1
             ann['image_id'] = 0
-            ann['bbox'] = [float(b) for b in d[:4]]
+            ann['bbox'] = [float(d[0]), float(d[1]), float(d[2]) - float(d[0]), float(d[3]) - float(d[1])]  # format: [xmin, ymin, h, w]
             ann['category_id'] = int(d[-1])
             ann['score'] = float(d[4])
             ann['area'] = int((d[2] - d[0]) * (d[3] - d[1]))

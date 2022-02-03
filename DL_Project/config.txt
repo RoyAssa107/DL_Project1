@@ -8,7 +8,7 @@
 [GENERAL]
     device = cpu
     seed = 0
-    model = yolov5x
+    model = yolov5n
 
 ##########################################################################
 #                          Dataset parameters:                           #
@@ -31,7 +31,7 @@
 ############################################################################
 
 [ATTACK]
-    max_iter = 100
+    max_iter = 10
     max_strength = 255
     target = IOU
     amount = 1
