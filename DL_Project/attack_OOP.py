@@ -590,7 +590,6 @@ class Attack:
         self.update_output_params(original_img1, attacked_img1, noise1, base_path, outputImgName, output)
         # return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
-
     ###########################################################
     # Function that adds noise to pixels inside each bounding #
     # box with Bernoulli distribution On each pixel inside    #
@@ -599,7 +598,7 @@ class Attack:
     ###########################################################
     def attack_on_bounding_box_Bernoulli_ellipse(self, iteration_num):
         strength = 255  # Noising strength (0-minimal, 255-maximal)
-        max_prob = 1 * iteration_num
+        max_prob = 0.01 * iteration_num
         num_ellipse = 5
 
         outputImgName = "\\" + self.attack_config_args["imgPath"].split('.')[0].split('\\')[
@@ -609,7 +608,6 @@ class Attack:
         X = self.attack_config_args["x"]
         model = self.attack_config_args["model"]
         base_path = self.attack_config_args["base_path"]
-
 
         # Extract preds of original image ran on OD Neural Net
         result_preds = self.attack_config_args["results"].pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
@@ -644,8 +642,6 @@ class Attack:
             # noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
             # bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels * samples
             ##########
-            if b_idx != 1:
-                continue
             bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += self.Ellipse_Noise(
                                                                                                 num_of_ellipses=num_ellipse,
                                                                                                 bbox=box,
@@ -677,7 +673,7 @@ class Attack:
 
         self.update_output_params(original_img1, attacked_img1, noise1, base_path, outputImgName, output)
 
-    def Ellipse_Noise(self, num_of_ellipses=10, bbox=None, max_prob=1):
+    def Ellipse_Noise(self, num_of_ellipses=10, bbox=None, max_prob=0.1):
         X = self.attack_config_args["x"]
         strength = 255
         bounding_box_noise = np.zeros(X.shape)
@@ -899,8 +895,12 @@ class Attack:
             E.evaluate()  # run per image evaluation
             fns_lower = E.fns
             fps_lower = E.fps
-            self.attack_config_args["success"] = len(fns_upper) != len(
-                fns_lower)  # fns_lower > fns_upper -> attack succeeded
+            self.attack_config_args["success"] = False
+            if len(fns_upper) > 0:
+                self.attack_config_args["success"] = 'Stop'
+            if len(fns_upper) != len(fns_lower):
+                self.attack_config_args["success"] = True  # fns_lower < fns_upper -> attack succeeded
+
             return len(fns_upper) - len(fns_lower), self.attack_config_args["success"]
 
         elif target == 'False Positive':
@@ -1030,11 +1030,13 @@ class Attack:
                 self.attack_config_args["flag_successful_attack"] = flag_successful_attack
 
                 # Checking id the attack was successful
-                if flag_successful_attack:
+                if flag_successful_attack is True:
                     # Attack succeeded; Plotting & Saving results to directory
                     # preds: [Dx6] -> D is number of detections, 6 is [xmin, ymin, xmax, ymax, p, c]
                     self.plot_attacked_image_BOX(plot_result=True, save_result=True)
                     success = True
+                    break
+                elif flag_successful_attack == 'Stop':
                     break
 
         # If attack succeeded, the success message is green

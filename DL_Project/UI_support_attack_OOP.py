@@ -83,6 +83,7 @@ def main():
                               device=device)  # Adding another dimension
         X = X.permute(0, 3, 1, 2)  # Permuting img to be in shape: (1,3,780,1280) for Zidane
         X = X[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)
+        results = model(np.asarray(X[0].permute(1, 2, 0)))
 
         # Prepare all kwargs for the attack
         attack_config_args = {'model': model, 'x': X, 'results': results, 'imgPath': fn,

@@ -38,3 +38,6 @@
     target = IOU
     amount = 1
     noise_algorithm = Ellipse_Bounding_Box_Attack
+    max_prob = 0.01
+    upper_IoU = 0.9
+    lower_IoU = 0.8
