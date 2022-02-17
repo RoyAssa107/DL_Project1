@@ -627,7 +627,7 @@ class Attack:
         bounding_box_noise = np.zeros(X.shape)
 
         # Adding targeted noise *inside* each bounding box
-        for box in result_preds:
+        for b_idx, box in enumerate(result_preds):
             x_min = int(box[0].item())
             x_max = int(box[2].item())
             y_min = int(box[1].item())
@@ -642,8 +642,10 @@ class Attack:
             # noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
             # bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels * samples
             ##########
+            if b_idx != 1:
+                continue
             bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += self.Ellipse_Noise(
-                                                                                                num_of_ellipses=10,
+                                                                                                num_of_ellipses=3,
                                                                                                 bbox=box,
                                                                                                 max_prob=1)
 
@@ -677,7 +679,7 @@ class Attack:
         X = self.attack_config_args["x"]
         strength = 255
         bounding_box_noise = np.zeros(X.shape)
-        ellipses = [] * (num_of_ellipses + 1)  # Start at index 1 for the first ellipse
+        ellipses = [[] for i in range(num_of_ellipses + 1)]  # Start at index 1 for the first ellipse
         w = bbox[2] - bbox[0]
         h = bbox[3] - bbox[1]
         is_ellipse_vertical = h > w
@@ -690,16 +692,16 @@ class Attack:
         for i in range(1, num_of_ellipses + 1):
             if is_ellipse_vertical:
                 # In this case, we need focal points to be parallel to the y_axis (therefore a is computed based on h)
-                a = (i / num_of_ellipses) / (h / 2)
-                b = (i / num_of_ellipses) / (w / 2)
-                c = math.sqrt(a ** 2 - b ** 2)
+                a = (i / num_of_ellipses) * (h / 2)
+                b = (i / num_of_ellipses) * (w / 2)
+                c = math.sqrt(abs(a ** 2 - b ** 2))
                 F1 = [int(w / 2), int(h / 2) + c]
                 F2 = [int(w / 2), int(h / 2) - c]
             else:
                 # In this case, we need focal points to be parallel to the x_axis (therefore a is computed based on w)
-                a = (i / num_of_ellipses) / (w / 2)
-                b = (i / num_of_ellipses) / (h / 2)
-                c = math.sqrt(a ** 2 - b ** 2)
+                a = (i / num_of_ellipses) * (w / 2)
+                b = (i / num_of_ellipses) * (h / 2)
+                c = math.sqrt(abs(a ** 2 - b ** 2))
                 F1 = [int(w / 2) - c, int(h / 2)]
                 F2 = [int(w / 2) + c, int(h / 2)]
             noise_Bernoulli_prob = (1 - (i - 1) / num_of_ellipses) * max_prob
@@ -731,15 +733,18 @@ class Attack:
         for y_axis in range(min(y_max, 640) - y_min):
             for x_axis in range(min(x_max, 1280) - x_min):
                 for e_idx, ellipse in enumerate(ellipses):
+                    if e_idx == 0:
+                        continue
                     # Calculate distance to F1 and f2
                     r1 = self.distance([x_axis, y_axis], ellipse[-2])
                     r2 = self.distance([x_axis, y_axis], ellipse[-1])
 
-                    if r1 + r2 == ellipses[e_idx, 0]:
-                        bernoulli_prob = ellipses[2]
-                        # noise_pixels[:, y_axis, x_axis] = np.random.binomial(n=1, p=bernoulli_prob)
-                        noise_pixels[:, y_axis, x_axis] *= bernoulli_prob
-                        break
+                    if r1 + r2 > 2 * ellipse[0]:
+                        continue
+                    bernoulli_prob = ellipse[2]
+                    # noise_pixels[:, y_axis, x_axis] *= np.random.binomial(n=1, p=bernoulli_prob)
+                    noise_pixels[:, y_axis, x_axis] *= np.random.binomial(n=1, p=bernoulli_prob)
+                    break
 
         ## Update final noise to bounding box from ellipse attack
         # bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels
@@ -1020,8 +1025,6 @@ class Attack:
                 num_FP_or_IOU_Misses, flag_successful_attack = self.check_attack_output()
                 self.attack_config_args["num_FP_or_IOU_Misses"] = num_FP_or_IOU_Misses
                 self.attack_config_args["flag_successful_attack"] = flag_successful_attack
-
-
 
                 # Checking id the attack was successful
                 if flag_successful_attack:

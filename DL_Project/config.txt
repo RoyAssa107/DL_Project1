@@ -37,4 +37,4 @@
     max_strength = 255
     target = IOU
     amount = 1
-    noise_algorithm = Bernoulli_Bounding_Box_Attack
+    noise_algorithm = Ellipse_Bounding_Box_Attack
