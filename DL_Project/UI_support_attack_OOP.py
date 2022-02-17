@@ -47,8 +47,8 @@ def main():
     noise_algorithm = config['ATTACK']['noise_algorithm']  # Chosen_Noise_Attack/White_Noise_Attack/
     amount = float(config['ATTACK']['amount'])
     path = config['DATASET']['relative_path']
-    conf_level_yolo = float(config['ATTACK']['conf_yolo'])
-    iou_thresh_yolo = float(config['ATTACK']['iou_thresh_yolo'])
+    conf_level_yolo = float(config['GENERAL']['conf_yolo'])
+    iou_thresh_yolo = float(config['GENERAL']['iou_thresh_yolo'])
 
     # cpu/gpu configurations
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
