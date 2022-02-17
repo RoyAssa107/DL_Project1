@@ -590,6 +590,7 @@ class Attack:
         self.update_output_params(original_img1, attacked_img1, noise1, base_path, outputImgName, output)
         # return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
+
     ###########################################################
     # Function that adds noise to pixels inside each bounding #
     # box with Bernoulli distribution On each pixel inside    #
@@ -598,16 +599,17 @@ class Attack:
     ###########################################################
     def attack_on_bounding_box_Bernoulli_ellipse(self, iteration_num):
         strength = 255  # Noising strength (0-minimal, 255-maximal)
-        p_noised = 0.01 * iteration_num  # Probability for each pixel to be noised with noise drawn from uniform
-        # distribution of specified *strength* and current attack iteration
+        max_prob = 1 * iteration_num
+        num_ellipse = 5
 
         outputImgName = "\\" + self.attack_config_args["imgPath"].split('.')[0].split('\\')[
             -1]  # Get pure name of image (without path and format of image)
-        outputImgName += "_" + str(strength) + "_Bernoulli_" + str(p_noised) + "_Bounding_box_Noise"
+        outputImgName += "_" + str(strength) + "_Ellipse_Bernoulli_" + str(max_prob) + "_Bounding_box_Noise"
 
         X = self.attack_config_args["x"]
         model = self.attack_config_args["model"]
         base_path = self.attack_config_args["base_path"]
+
 
         # Extract preds of original image ran on OD Neural Net
         result_preds = self.attack_config_args["results"].pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
@@ -645,9 +647,9 @@ class Attack:
             if b_idx != 1:
                 continue
             bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += self.Ellipse_Noise(
-                                                                                                num_of_ellipses=3,
+                                                                                                num_of_ellipses=num_ellipse,
                                                                                                 bbox=box,
-                                                                                                max_prob=1)
+                                                                                                max_prob=max_prob)
 
         delta1 = torch.from_numpy(bounding_box_noise)  # Convert from numpy to torch tensor
 
@@ -714,12 +716,14 @@ class Attack:
         y_max = int(bbox[3].item())
 
         # Adding noise to specific pixels inside each bounding box that the Bernoulli distribution returned 1
-        noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
+        noise_matrix = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
+        noise_pixels = np.zeros(noise_matrix.shape)
+
         if is_ellipse_vertical:
-            noise_pixels[:, :, :int((min(x_max, 1280) - x_min) / 2)] = 0  # Zero only left side of decision
+            noise_matrix[:, :, :int((min(x_max, 1280) - x_min) / 2)] = 0  # Zero only left side of decision
             # boundary when ellipse is vertical
         else:
-            noise_pixels[:, :int((min(y_max, 640) - y_min) / 2), :] = 0  # Zero only lower part of decision
+            noise_matrix[:, :int((min(y_max, 640) - y_min) / 2), :] = 0  # Zero only lower part of decision
             # boundary when ellipse is horizontal
 
         # Further Explanation: Till this point, noise_pixels holds maximal noise in half of the bounding box If the
@@ -742,8 +746,7 @@ class Attack:
                     if r1 + r2 > 2 * ellipse[0]:
                         continue
                     bernoulli_prob = ellipse[2]
-                    # noise_pixels[:, y_axis, x_axis] *= np.random.binomial(n=1, p=bernoulli_prob)
-                    noise_pixels[:, y_axis, x_axis] *= np.random.binomial(n=1, p=bernoulli_prob)
+                    noise_pixels[:, y_axis, x_axis] += np.random.binomial(n=1, p=bernoulli_prob) * noise_matrix[:, y_axis, x_axis]
                     break
 
         ## Update final noise to bounding box from ellipse attack
