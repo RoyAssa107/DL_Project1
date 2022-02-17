@@ -697,8 +697,8 @@ class Attack:
             noise_Bernoulli_prob = (1 - (i - 1) / num_of_ellipses) * max_prob
 
             c = math.sqrt(a ** 2 - b ** 2)
-            F1 = [-c, 0]
-            F2 = [c, 0]
+            F1 = [int(w/2) - c, int(h/2)]
+            F2 = [int(w/2) + c, int(h/2)]
 
             ellipses[i] = [a, b, noise_Bernoulli_prob, F1, F2]
 
