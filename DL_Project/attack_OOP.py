@@ -1,6 +1,7 @@
 ###########
 # Imports #
 ###########
+import math
 import os
 import cv2
 import matplotlib
@@ -589,6 +590,187 @@ class Attack:
         self.update_output_params(original_img1, attacked_img1, noise1, base_path, outputImgName, output)
         # return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
+    ###########################################################
+    # Function that adds noise to pixels inside each bounding #
+    # box with Bernoulli distribution On each pixel inside    #
+    # the bounding boxes, we draw a Bernoulli random variable #
+    # with probability *p* to be noised                       #
+    ###########################################################
+    def attack_on_bounding_box_Bernoulli_ellipse(self, iteration_num):
+        strength = 255  # Noising strength (0-minimal, 255-maximal)
+        p_noised = 0.01 * iteration_num  # Probability for each pixel to be noised with noise drawn from uniform
+        # distribution of specified *strength* and current attack iteration
+
+        outputImgName = "\\" + self.attack_config_args["imgPath"].split('.')[0].split('\\')[
+            -1]  # Get pure name of image (without path and format of image)
+        outputImgName += "_" + str(strength) + "_Bernoulli_" + str(p_noised) + "_Bounding_box_Noise"
+
+        X = self.attack_config_args["x"]
+        model = self.attack_config_args["model"]
+        base_path = self.attack_config_args["base_path"]
+
+        # Extract preds of original image ran on OD Neural Net
+        result_preds = self.attack_config_args["results"].pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
+
+        # Extract width and height of all bounding boxes in the image
+        w, h, x, y = [], [], [], []
+
+        for box in result_preds:
+            w.append(box[2] - box[0])
+            h.append(box[3] - box[1])
+            x.append(box[0])
+            y.append(box[1])
+
+        # new_preds = [[x[i], y[i], w[i], h[i], result_preds[i, 4], result_preds[i, 5]] for i in range(len(w))]  # [x_min,y_min,w,h,prob,c]
+
+        # bounding_box_noise = np.random.random((1, 3, 640, 1280)) * (strength)
+        bounding_box_noise = np.zeros(X.shape)
+
+        # Adding targeted noise *inside* each bounding box
+        for box in result_preds:
+            x_min = int(box[0].item())
+            x_max = int(box[2].item())
+            y_min = int(box[1].item())
+            y_max = int(box[3].item())
+
+            ##########
+            bounding_box_shape = (3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)
+            # samples = np.random.binomial(size=bounding_box_shape, n=1,
+            #                              p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from
+            # # Bernoulli distribution
+            # # Adding noise to specific pixels inside each bounding box that the Bernoulli distribution returned 1
+            # noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
+            # bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels * samples
+            ##########
+            bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += Ellipse_Noise()
+
+        delta1 = torch.from_numpy(bounding_box_noise)  # Convert from numpy to torch tensor
+
+        inputs1 = X + delta1
+        # inputs1 = inputs1 % 255  # Plotting results
+        # inputs1 = normalize(X + delta1)
+        original_img = X[0].permute(1, 2, 0)
+        attacked_img = inputs1[0].permute(1, 2, 0)
+        # noise1 = attacked_img - original_img
+
+        # Rescale noise pixels
+        if delta1.min() < 0:
+            # normalize noise to fit inside range [0,255]
+            noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
+        else:
+            # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
+            noise1 = (delta1[0].permute(1, 2, 0)) / 256
+
+        original_img1 = original_img / 255
+        attacked_img1 = attacked_img / 255
+        output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the noised image
+
+        # plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
+        #                         results.pred[0], plot_result=False, save_result=True)  # plot & save to output file
+
+        self.update_output_params(original_img1, attacked_img1, noise1, base_path, outputImgName, output)
+
+    def Ellipse_Noise(self, num_of_ellipses=10, bbox=None, max_prob=0.1):
+        X = self.attack_config_args["x"]
+        strength = 255
+        bounding_box_noise = np.zeros(X.shape)
+        ellipses = [] * (num_of_ellipses + 1)  # Start at index 1 for
+        # the first ellipse
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
+        is_ellipse_vertical = h > w
+
+        # Creating ellipses relative to the center (0,0)
+        # After calculating noises based on ellipses relative to this center,
+        # we will shift the x_axis and y_axis according to the real position of bbox in the image
+        # i.e., bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)]
+        # This shifts the position of noise we've created to the real position in the image
+        for i in range(1, num_of_ellipses + 1):
+            if is_ellipse_vertical:
+                # In this case, we need focal points to be parallel to the y_axis (therefore a is computed based on h)
+                a = (i / num_of_ellipses) / (h / 2)
+                b = (i / num_of_ellipses) / (w / 2)
+            else:
+                # In this case, we need focal points to be parallel to the x_axis (therefore a is computed based on w)
+                a = (i / num_of_ellipses) / (w / 2)
+                b = (i / num_of_ellipses) / (h / 2)
+            noise_Bernoulli_prob = (1 - (i - 1) / num_of_ellipses) * max_prob
+
+            c = math.sqrt(a ** 2 - b ** 2)
+            F1 = [-c, 0]
+            F2 = [c, 0]
+
+            ellipses[i] = [a, b, noise_Bernoulli_prob, F1, F2]
+
+        # # Determine decision line (horizontal / vertical)
+        # center = [bbox[0] + w/2, bbox[1] + h/2]
+        #
+        # # noise
+        # # if ellipse is vertical, we want noise with shape of W x H/2
+        # # if ellipse is horizontal, we want noise with shape of W/2 x H
+        # noise = np.omes([w if is_ellipse_vertical else w / 2, h if not is_ellipse_vertical else h / 2])
+        #
+        # for i in range(width):
+        #     for j in range(height):
+        #         for e_idx, ellipse in enumerate(ellipses):
+        #             # Calculate distance to F1 and f2
+        #             r1 = distance([i,j], ellipse[3])
+        #             r2 = distance([i,j], ellipse[3])
+        #             if r1 + r2 ==
+        #             # check if i,j in e:
+        #             #
+        #         noise[i][j]
+
+        #####################################################################################################
+        # New code i've wrote yesterday after we've met
+        x_min = int(bbox[0].item())
+        x_max = int(bbox[2].item())
+        y_min = int(bbox[1].item())
+        y_max = int(bbox[3].item())
+
+        # Adding noise to specific pixels inside each bounding box that the Bernoulli distribution returned 1
+        noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
+        if is_ellipse_vertical:
+            noise_pixels[:, :, :int((min(x_max, 1280) - x_min) / 2)] = 0  # Zero only left side of decision
+                                                                          # boundary when ellipse is vertical
+        else:
+            noise_pixels[:, :int((min(y_max, 640) - y_min) / 2), :] = 0  # Zero only lower part of decision
+                                                                         # boundary when ellipse is horizontal
+
+        # Further Explanation: Till this point, noise_pixels holds maximal noise in half of the bounding box If the
+        # ellipse is vertical, we created maximal noise matrix in each pixel in the right side of boundary decision
+        # If the ellipse is horizontal, we created maximal noise matrix in each pixel in the upper side of boundary
+        # decision Now, all we need to do is to scan each pixel in the bbox (although its sufficient to run only on
+        # pixels in the upper side or right side of the boundary decision line (according to is_ellipse_vertical)
+        # since the lower and left sides are zeros => this wont have an affect when we sample a Bernoulli r.v and
+        # multiply the sampled value with the noise we've generated (since its already 0), it will only have an
+        # affect on the upper and right sides of the decision boundary line.
+        for y_axis in range(min(y_max, 640) - y_min):
+            for x_axis in range(min(x_max, 1280) - x_min):
+                for e_idx, ellipse in enumerate(ellipses):
+                    # Calculate distance to F1 and f2
+                    r1 = self.distance([x_axis, y_axis], ellipse[-2])
+                    r2 = self.distance([x_axis, y_axis], ellipse[-1])
+
+                    if r1 + r2 == ellipses[e_idx, 0]:
+                        bernoulli_prob = ellipses[2]
+                        noise_pixels[:, y_axis, x_axis] = np.random.binomial(n=1, p=bernoulli_prob)
+                        break
+
+        # Update final noise to bounding box from ellipse attack
+        bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels
+
+        # samples = np.random.binomial(size=bounding_box_shape, n=1,
+        #                              p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from
+        # # Bernoulli distribution
+        # noise_pixels = np.random.random((3, min(y_max, 640) - y_min, min(x_max, 1280) - x_min)) * strength
+        # bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels * samples
+        #####################################################################################################
+
+    # Function that calculates distance between 2 points (i.e. distance between pixel and focal point F in ellipse)
+    def distance(self, point1, point2):
+        return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
     #############################################################
     # Function that calculates IOU of two bounding boxes in the #
     # following format:                                         #
@@ -723,7 +905,8 @@ class Attack:
             E.evaluate()  # run per image evaluation
             fns_lower = E.fns
             fps_lower = E.fps
-            self.attack_config_args["success"] = len(fns_upper) != len(fns_lower)  # fns_lower > fns_upper -> attack succeeded
+            self.attack_config_args["success"] = len(fns_upper) != len(
+                fns_lower)  # fns_lower > fns_upper -> attack succeeded
             return len(fns_upper) - len(fns_lower), self.attack_config_args["success"]
 
         elif target == 'False Positive':
@@ -974,7 +1157,8 @@ class Attack:
             ann = dict()
             ann['id'] = ann_idx + 1
             ann['image_id'] = 0
-            ann['bbox'] = [float(g[0]), float(g[1]), float(g[2]) - float(g[0]), float(g[3]) - float(g[1])]  # format: [xmin, ymin, h, w]
+            ann['bbox'] = [float(g[0]), float(g[1]), float(g[2]) - float(g[0]),
+                           float(g[3]) - float(g[1])]  # format: [xmin, ymin, h, w]
             ann['category_id'] = int(g[-1])
             ann['iscrowd'] = 0
             ann['area'] = int((g[2] - g[0]) * (g[3] - g[1]))
@@ -987,7 +1171,8 @@ class Attack:
             ann = dict()
             ann['id'] = ann_idx + 1
             ann['image_id'] = 0
-            ann['bbox'] = [float(d[0]), float(d[1]), float(d[2]) - float(d[0]), float(d[3]) - float(d[1])]  # format: [xmin, ymin, h, w]
+            ann['bbox'] = [float(d[0]), float(d[1]), float(d[2]) - float(d[0]),
+                           float(d[3]) - float(d[1])]  # format: [xmin, ymin, h, w]
             ann['category_id'] = int(d[-1])
             ann['score'] = float(d[4])
             ann['area'] = int((d[2] - d[0]) * (d[3] - d[1]))
