@@ -1,7 +1,8 @@
 Roy:
   1. continue with the attack - success with "good" IoU (lower then .75)
-  2. set conf threshold as param in config:
-    for Yolo is model.conf
+  2. add support to upper & lower fns
+     and add support to max_prob in ellipse
+
 
 
 Avraham:

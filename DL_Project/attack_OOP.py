@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 import time
 import torchvision.ops.boxes as bops
 from pycocotools import coco, cocoeval
+from Color_Identification import get_colors_distribution
+from canny_algorithm import blur_image
 
 # import gc
 
@@ -47,14 +49,14 @@ class Attack:
         # Attack parameters, drawn from config.txt and all important attack output parameters
         # The first part includes parameters drawn from config.txt file
         # The second part includes parameters which hold the attack output
-        self.attack_config_args = {'model': None, 'x': None, 'results': None, 'base_path': None,
-                                   'imgPath': None, 'max_iter': None, 'classes': None, 'normalize': lambda x: x,
-                                   "success_color": None, "noise_algorithm": None,
-                                   "target": None, "image_index": None, "iteration_num": None, "original_pred": None,
-                                   "attack_pred": None, "starting_time": None, "ending_time": None, "amount": None,
-                                   "num_FP_or_IOU_Misses": None, 'outputImgName': None, 'original_img': None,
-                                   'attacked_img': None, 'success': None, 'message': None
-                                   }
+        # self.attack_config_args = {'model': None, 'x': None, 'results': None, 'base_path': None,
+        #                            'imgPath': None, 'max_iter': None, 'classes': None, 'normalize': lambda x: x,
+        #                            "success_color": None, "noise_algorithm": None,
+        #                            "target": None, "image_index": None, "iteration_num": None, "original_pred": None,
+        #                            "attack_pred": None, "starting_time": None, "ending_time": None, "amount": None,
+        #                            "num_FP_or_IOU_Misses": None, 'outputImgName': None, 'original_img': None,
+        #                            'attacked_img': None, 'success': None, 'message': None
+        #                            }
         self.attack_config_args = attack_kwargs
 
         ################################################################################
@@ -96,11 +98,11 @@ class Attack:
         attack_pred = self.attack_config_args["attack_pred"]
         noise = self.attack_config_args["noise"]
 
-        # save the attacked image without the bbox
-        plt.clf()
-        plt.imshow(attacked_img)
-        if save_result:
-            self.save_result_image(model_name=model_name, suffix='')  # Save attack result image in directory
+        # # save the attacked image without the bbox
+        # plt.clf()
+        # plt.imshow(attacked_img)
+        # if save_result:
+        #     self.save_result_image(model_name=model_name, suffix='')  # Save attack result image in directory
 
         # create figure
         rows = 3
@@ -136,22 +138,28 @@ class Attack:
                                  fill=False)
             plt.gca().add_patch(rect)
             # h = box[3] - box[1]
+            # font = {'family': 'normal',
+            #         'weight': 'bold',
+            #         'size': 3}
+            #
+            # matplotlib.rc('font', **font)
             plt.text(x=box[0] + 20, y=box[1], s=classes[int(box[-1])] + f", {round(box[-2].item(), 3)}", c='black',
                      backgroundcolor='g')
 
         fig.add_subplot(rows, cols, 3)
 
-        # Showing all sub figures in a single plot if plot flag is True
-        if plot_result:
-            plt.imshow(noise)
-            plt.title("Noise image")
-            plt.show()
-
         # Saving attack image to directory <=> save flag is True
         if save_result:
             self.save_result_image(model_name=model_name, suffix='_bbox')  # Save attack result image in directory
 
-        time.sleep(0.1)
+        # Showing all sub figures in a single plot if plot flag is True
+        if plot_result:
+            # figure(figsize=(10, 10), dpi=80)
+            plt.title("Noise image")
+            plt.imshow(noise)
+            plt.show()
+
+        time.sleep(0.05)
 
     ############################################################
     # Function that updates attack output parameters attribute #
@@ -170,7 +178,7 @@ class Attack:
     ###########################################################
     def attack_with_white_noise_strength(self, iteration_num):
         # Define specific noise (with regards to the current iteration number)
-        strength = 100 + iteration_num * 10
+        strength = 64 + iteration_num * 10
         outputImgName = "\\" + self.attack_config_args["imgPath"].split('.')[0].split('\\')[-1]  # Get pure name of
         # image (without path and format of image)
         outputImgName += "_" + str(strength) + "_White_Noise"
@@ -310,7 +318,7 @@ class Attack:
     ###########################################################
     def attack_on_bounding_box_Bernoulli(self, iteration_num):
         strength = 255  # Noising strength (0-minimal, 255-maximal)
-        p_noised = 0.01 * iteration_num  # Probability for each pixel to be noised with noise drawn from uniform
+        p_noised = 0.04 * iteration_num  # Probability for each pixel to be noised with noise drawn from uniform
         # distribution of specified *strength* and current attack iteration
 
         outputImgName = "\\" + self.attack_config_args["imgPath"].split('.')[0].split('\\')[
@@ -391,6 +399,8 @@ class Attack:
     def attack_with_canny_and_Bernoulli(self, iteration_num):
         strength = 255  # Noising strength (0-minimal, 255-maximal)
         p_noised = 0.01 * iteration_num  # Probability for each pixel to be noised with noise drawn from uniform
+        p_noised = 0.4 * iteration_num  # Probability for each pixel to be noised with noise drawn from uniform
+
         # distribution of specified *strength* and current attack iteration
 
         base_path = self.attack_config_args["base_path"]
@@ -420,7 +430,7 @@ class Attack:
         # Bernoulli distribution
         noised_edges = noise * canny_output_3_dim * Bernoulli_samples
 
-        new_noised_image = X
+        new_noised_image = X.clone()
         new_noised_image[0] += noised_edges.permute(2, 0, 1)
         inputs1 = new_noised_image
 
@@ -449,7 +459,7 @@ class Attack:
         #                         results.pred[0])  # plotting results and save them to output file
         # print()
 
-        self.update_output_params(original_img1, attacked_img1, noise1, base_path, outputImgName, output)
+        self.update_output_params(X[0].permute(1, 2, 0) / 255, attacked_img1, noise1, base_path, outputImgName, output)
         # return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
     ###########################################################
@@ -459,7 +469,6 @@ class Attack:
     # self attribute.                                         #
     ###########################################################
     def attack_on_bounding_box_center(self, iteration_num):
-        ############################################################################################
         # Attempt to add specific noise (with specified strength)
         strength = 150  # Noising strength (0-minimal, 255-maximal)
         r = 50 + 10 * iteration_num
@@ -592,14 +601,18 @@ class Attack:
 
     ###########################################################
     # Function that adds noise to pixels inside each bounding #
-    # box with Bernoulli distribution On each pixel inside    #
-    # the bounding boxes, we draw a Bernoulli random variable #
-    # with probability *p* to be noised                       #
+    # box with Ellipse distribution on each pixel inside      #
+    # the bounding boxes, we draw a ellipse distribution      #
+    # drawn from a Bernoulli distribution with probability    #
+    # p to be noised.                                         #
     ###########################################################
     def attack_on_bounding_box_Bernoulli_ellipse(self, iteration_num):
-        strength = 255  # Noising strength (0-minimal, 255-maximal)
-        max_prob = 0.01 * iteration_num
-        num_ellipse = 5
+        strength = 64  # Noising strength (0-minimal, 255-maximal)
+        max_prob = 0.65 + 0.05 * iteration_num
+
+        # max_prob = 0.9 + 0.01 * iteration_num  # For airplane_10.jpg
+
+        num_ellipse = 3
 
         outputImgName = "\\" + self.attack_config_args["imgPath"].split('.')[0].split('\\')[
             -1]  # Get pure name of image (without path and format of image)
@@ -621,8 +634,6 @@ class Attack:
             x.append(box[0])
             y.append(box[1])
 
-        # new_preds = [[x[i], y[i], w[i], h[i], result_preds[i, 4], result_preds[i, 5]] for i in range(len(w))]  # [x_min,y_min,w,h,prob,c]
-
         # bounding_box_noise = np.random.random((1, 3, 640, 1280)) * (strength)
         bounding_box_noise = np.zeros(X.shape)
 
@@ -643,9 +654,16 @@ class Attack:
             # bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels * samples
             ##########
             bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += self.Ellipse_Noise(
-                                                                                                num_of_ellipses=num_ellipse,
-                                                                                                bbox=box,
-                                                                                                max_prob=max_prob)
+                num_of_ellipses=num_ellipse,
+                bbox=box,
+                max_prob=max_prob,
+                strength=strength)
+
+            # bounding_box_noise[0, 0, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += self.Ellipse_Noise(
+            #     num_of_ellipses=num_ellipse,
+            #     bbox=box,
+            #     max_prob=max_prob,
+            #     strength=strength)  # Noise only in the R channel
 
         delta1 = torch.from_numpy(bounding_box_noise)  # Convert from numpy to torch tensor
 
@@ -673,9 +691,15 @@ class Attack:
 
         self.update_output_params(original_img1, attacked_img1, noise1, base_path, outputImgName, output)
 
-    def Ellipse_Noise(self, num_of_ellipses=10, bbox=None, max_prob=0.1):
+    ###########################################################
+    # Function that adds noise to pixels inside each bounding #
+    # box with Ellipse distribution on each pixel inside      #
+    # the bounding boxes, we draw a ellipse distribution      #
+    # drawn from a Bernoulli distribution with probability    #
+    # p to be noised.                                         #
+    ###########################################################
+    def Ellipse_Noise(self, num_of_ellipses=10, bbox=None, max_prob=0.1, strength=255):
         X = self.attack_config_args["x"]
-        strength = 255
         bounding_box_noise = np.zeros(X.shape)
         ellipses = [[] for i in range(num_of_ellipses + 1)]  # Start at index 1 for the first ellipse
         w = bbox[2] - bbox[0]
@@ -742,12 +766,15 @@ class Attack:
                     if r1 + r2 > 2 * ellipse[0]:
                         continue
                     bernoulli_prob = ellipse[2]
-                    noise_pixels[:, y_axis, x_axis] += np.random.binomial(n=1, p=bernoulli_prob) * noise_matrix[:, y_axis, x_axis]
+                    noise_pixels[:, y_axis, x_axis] += np.random.binomial(n=1, p=bernoulli_prob) * noise_matrix[:,
+                                                                                                   y_axis, x_axis]
                     break
 
         ## Update final noise to bounding box from ellipse attack
         # bounding_box_noise[0, :, y_min:min(y_max, 640), x_min:min(x_max, 1280)] += noise_pixels
+
         return noise_pixels
+        # return noise_pixels[0,:,:]  # noise only in the R (red) channel
 
         # samples = np.random.binomial(size=bounding_box_shape, n=1,
         #                              p=p_noised)  # Creating a (bounding box shape) matrix of 0/1 drawn from
@@ -760,6 +787,187 @@ class Attack:
     @staticmethod
     def distance(point1, point2):
         return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
+    ###########################################################
+    # Function that adds noise to pixels inside each bounding #
+    # box using random noise generated in a rectangle shape   #
+    # of changing size according to iteration number.         #
+    # As the iteration_num increases, the ratio of coverage   #
+    # of the rectangle inside the bbox grows linearly.        #
+    ###########################################################
+    def attack_on_bounding_box_rectangle(self, iteration_num):
+        # Attempt to add specific noise (with specified strength)
+        strength = 128  # Noising strength (0-minimal, 255-maximal)
+        ratio = 0.1 + 0.05 * iteration_num  # ratio of noise in bbox (from left side of bbox)
+
+        base_path = self.attack_config_args["base_path"]
+        imgPath = self.attack_config_args["imgPath"]
+        X = self.attack_config_args["x"]
+        model = self.attack_config_args["model"]
+        results = self.attack_config_args["results"]
+
+        # Create attack output image path
+        outputImgName = "\\" + imgPath.split('.')[0].split('\\')[-1]  # Get pure name of image (W.O format of image)
+        outputImgName += "_" + str(strength) + "_" + str(ratio) + "_Bounding_box_Noise_Rectangle"
+
+        # Extract preds of original image ran on OD Neural Net
+        result_preds = results.pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
+
+        # Extract width and height of all bounding boxes in the image
+        new_preds = []  # [x_min,y_min,w,h]
+
+        # # Plotting distribution of colors in each bounding box
+        # matplotlib.use('TkAgg')
+        # for box in result_preds:
+        #     tmp_img = cv2.imread(imgPath)  # in shape: (height, width, color)
+        #     current_bbox_image = tmp_img[int(box[1]):int(box[3]), int(box[0]):int(box[2]), :]
+        #     get_colors_distribution(img=current_bbox_image, imgPath=imgPath, num_colors=8,
+        #                             show_chart=True, debug=True, seed=0)
+        #     print()
+
+        # # Blurring each bounding box and plotting the blurred bounding box image
+        matplotlib.use('TkAgg')
+        for box in result_preds:
+            tmp_img = cv2.imread(imgPath)  # in shape: (height, width, color)
+            current_bbox_image = tmp_img[int(box[1]):int(box[3]), int(box[0]):int(box[2]), :]
+            # Blur image using contour detection using cv2
+            blur_image(current_bbox_image, sigmaX=10, sigmaY=10)
+            print()
+
+        # Creating a new bbox in the format: [x_min, y_min, w, h]
+        for box in result_preds:
+            w = int(box[2] - box[0])
+            h = int(box[3] - box[1])
+            x_min = int(box[0])
+            y_min = int(box[1])
+            new_preds.append([x_min, y_min, w, h])
+
+        # Creating new matrix that will hold the noise image
+        bounding_box_noise = np.zeros(X.shape)
+
+        # Adding targeted noise *inside* each bounding box left side with specified ratio size
+        for box in new_preds:
+            x_min = int(box[0])
+            y_min = int(box[1])
+            w = int(box[2] * ratio)
+            h = int(box[3])
+            # bounding_box_noise[0, :, y_min:min(y_min + h, 640), x_min:min(x_min + w, 1280)] += np.random.random(
+            #     (3, max(min(y_min + h, 640) - y_min, 0), min(x_min + w, 1280) - x_min)) * strength
+            bounding_box_noise[0, :, y_min:y_min + h, x_min:x_min + w] += np.random.random(
+                (3, h, w)) * strength
+
+        delta1 = torch.from_numpy(bounding_box_noise)  # White noise (torch)
+
+        inputs1 = X + delta1
+        # inputs1 = inputs1 % 255  # Plotting results
+        # inputs1 = normalize(X + delta1)
+        original_img = X[0].permute(1, 2, 0)
+        attacked_img = inputs1[0].permute(1, 2, 0)
+        noise1 = attacked_img - original_img
+
+        # Rescale noise pixels
+        '''
+        if delta1.min() < 0:
+            # normalize noise to fit inside range [0,255]
+            noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
+        else:
+            # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
+            noise1 = (delta1[0].permute(1, 2, 0)) / 256
+        '''
+
+        original_img1 = original_img / 255
+        attacked_img1 = attacked_img / 255
+
+        output = model(np.asarray(inputs1[0].permute(1, 2, 0)))  # Run the model on the noised image
+        # plot_attacked_image_BOX(original_img1, attacked_img1, noise1, base_path, outputImgName, output.pred[0],
+        #                         results.pred[0], plot_result=True, save_result=False, classes=classes_80)  # plot & save to output file
+        # print()
+        self.update_output_params(original_img1, attacked_img1, noise1 / 255, base_path, outputImgName, output)
+        # return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
+
+        ###########################################################
+        # Function that adds noise to pixels around each bbox.    #
+        # It blurs the contours of each bbox in the image.        #
+        # According to specified std (using Gaussian blur).       #
+        ###########################################################
+
+    def attack_on_bounding_box_Contour_Blur(self, iteration_num):
+        # Attempt to add specific noise (with specified strength)
+        strength = 128  # Noising strength (0-minimal, 255-maximal)
+        ksize = (5 + 2 * iteration_num, 5 + 2 * iteration_num)
+        min_threshold = 64 + 15 * iteration_num
+
+        base_path = self.attack_config_args["base_path"]
+        imgPath = self.attack_config_args["imgPath"]
+        X = self.attack_config_args["x"]
+        model = self.attack_config_args["model"]
+        results = self.attack_config_args["results"]
+
+        # Create attack output image path
+        outputImgName = "\\" + imgPath.split('.')[0].split('\\')[-1]  # Get pure name of image (W.O format of image)
+        outputImgName += "_" + str(strength) + "_ksize=" + str(ksize) + "_Bounding_box_Contour_Blur"
+
+        # Extract preds of original image ran on OD Neural Net
+        result_preds = results.pred[0]  # [x_min,y_min,x_max,y_max,prob,c]
+
+        # Extract width and height of all bounding boxes in the image
+        new_preds = []  # [x_min,y_min,w,h]
+
+        # # Plotting distribution of *colors* in each bounding box
+        # matplotlib.use('TkAgg')
+        # for box in result_preds:
+        #     tmp_img = cv2.imread(imgPath)  # in shape: (height, width, color)
+        #     current_bbox_image = tmp_img[int(box[1]):int(box[3]), int(box[0]):int(box[2]), :]
+        #     get_colors_distribution(img=current_bbox_image, imgPath=imgPath, num_colors=8,
+        #                             show_chart=True, debug=True, seed=0)
+        #     print()
+
+        # Creating new matrix that will hold the noise image
+        bounding_box_noise = np.zeros(X.shape)
+
+        # # Blurring each bounding box and plotting the blurred bounding box image
+        matplotlib.use('TkAgg')
+        tmp_img = cv2.imread(imgPath)  # in shape: (height, width, color)
+        tmp_img = cv2.cvtColor(tmp_img, cv2.COLOR_BGR2RGB)
+        new_image = X.clone()
+        for box in result_preds:
+            # current_bbox_image = X[0].permute(1, 2, 0)[int(box[1]):int(box[3]), int(box[0]):int(box[2]), :]  # [height, width, color]
+            current_bbox_image = tmp_img[int(box[1]):int(box[3]), int(box[0]):int(box[2]), :]  # [height, width, color]
+
+            # # Blur image using canny edge detection
+            # bbox_contour_noise = Canny_Blur_Image(current_bbox_image, low_threshold=200, max_low_Threshold=255,
+            #                                       window_name='Edge Map', kernel_size=(3, 3), plot=True)
+
+            # # Blur image using contour detection
+            bbox_contour_noise = blur_image(current_bbox_image, ksize=ksize, min_threshold=min_threshold,
+                                            max_threshold=255, plot=False)
+
+            bbox_contour_noise = np.moveaxis(bbox_contour_noise, -1, 0)
+            bounding_box_noise[0, :, int(box[1]):int(box[3]), int(box[0]):int(box[2])] = bbox_contour_noise
+            new_image[0, :, int(box[1]):int(box[3]), int(box[0]):int(box[2])] = torch.from_numpy(bbox_contour_noise)
+            print()
+
+        # Obtain noising results
+        original_img = X[0].permute(1, 2, 0)
+        attacked_img = new_image[0].permute(1, 2, 0)
+        noise1 = attacked_img - original_img
+
+        # Rescale noise pixels
+        '''
+        if delta1.min() < 0:
+            # normalize noise to fit inside range [0,255]
+            noise1 = ((delta1[0].permute(1, 2, 0) + abs(delta1.min())) / abs(delta1.min())) * 255
+        else:
+            # noise1 = ((delta1[0].permute(1,2,0))/delta1.max())*255
+            noise1 = (delta1[0].permute(1, 2, 0)) / 256
+        '''
+
+        original_img1 = original_img / 255
+        attacked_img1 = attacked_img / 255
+
+        output = model(np.asarray(attacked_img))  # Run the model on the noised image
+        self.update_output_params(original_img1, attacked_img1, noise1 / 255, base_path, outputImgName, output)
+        # return original_img1, attacked_img1, noise1, base_path, outputImgName, output  # return results for further handle
 
     #############################################################
     # Function that calculates IOU of two bounding boxes in the #
@@ -875,10 +1083,20 @@ class Attack:
         cocoGt = coco.COCO(gt)
         cocoDt = coco.COCO(dt)
         E = cocoeval.COCOeval(cocoGt, cocoDt)
-        E.iou_thr = .95
+        E.iou_thr = self.attack_config_args["upper_IoU"]
         E.evaluate()  # run per image evaluation
         fns_upper = E.fns
         fps_upper = E.fps
+
+        # Calculate Mean IoU (for all IoU > 0)
+        ious = [v.ravel() for v in E.ious.values() if type(v) is not list]
+        f_ious = [i.ravel() for i in ious if sum(i) > 0]
+        fi_ious = []
+        for i in f_ious:
+            for j in i:
+                if j > 0 and j > E.iou_thr:
+                    fi_ious.append(j)
+        print(fi_ious)
 
         if target == 'Missing Detection':
             # If the "amount" from config file is larger than the number of detections in the original image
@@ -890,11 +1108,13 @@ class Attack:
             return len(fns_upper), self.attack_config_args["success"]
 
         elif target == 'IOU':  # IoU
-            E.iou_thr = .2
+            # E.iou_thr = .2
+            E.iou_thr = self.attack_config_args["lower_IoU"]
             E = cocoeval.COCOeval(cocoGt, cocoDt)
             E.evaluate()  # run per image evaluation
             fns_lower = E.fns
-            fps_lower = E.fps
+
+            # fps_lower = E.fps
             self.attack_config_args["success"] = False
             if len(fns_upper) > 0:
                 self.attack_config_args["success"] = 'Stop'
@@ -931,7 +1151,10 @@ class Attack:
             return self.attack_with_canny_and_Bernoulli
         elif noise_algorithm == "Ellipse_Bounding_Box_Attack":
             return self.attack_on_bounding_box_Bernoulli_ellipse
-
+        elif noise_algorithm == "Bounding_Box_Attack_Rectangle":
+            return self.attack_on_bounding_box_rectangle
+        elif noise_algorithm == "Bounding_Box_Contour_Blur_Attack":
+            return self.attack_on_bounding_box_Contour_Blur
 
     ######################################################################################
     # Function that gets kwargs with all information about model,attack outputs and more #
@@ -955,6 +1178,7 @@ class Attack:
             ###    8. Total duration: {round(msg_args["ending_time"] - msg_args["starting_time"], 3)}s                       
             ################################################################
             """
+
         elif msg_args["target"] == 'IOU':
             message = f"""
             ################################################################
@@ -1029,7 +1253,13 @@ class Attack:
                 self.attack_config_args["num_FP_or_IOU_Misses"] = num_FP_or_IOU_Misses
                 self.attack_config_args["flag_successful_attack"] = flag_successful_attack
 
-                # Checking id the attack was successful
+                Debug = True
+                if Debug:
+                    matplotlib.use('TkAgg')
+                    self.plot_attacked_image_BOX(plot_result=True, save_result=False)
+                    print()
+
+                # Checking if the attack was successful
                 if flag_successful_attack is True:
                     # Attack succeeded; Plotting & Saving results to directory
                     # preds: [Dx6] -> D is number of detections, 6 is [xmin, ymin, xmax, ymax, p, c]
@@ -1037,14 +1267,17 @@ class Attack:
                     success = True
                     break
                 elif flag_successful_attack == 'Stop':
+                    success = 'Stop'
                     break
 
         # If attack succeeded, the success message is green
-        if success:
+        if success is True:
             success_color = colored(success, 'green')
-        else:
+        elif success is False:
             # If attack succeeded, the success message is red
             success_color = colored(success, 'red')
+        elif success == 'Stop':
+            success_color = colored(success, 'yellow')
 
         self.attack_config_args["success_color"] = success_color
         self.attack_config_args["ending_time"] = time.time()

@@ -1,32 +1,112 @@
 import cv2
 import numpy as np
+import skimage
 from matplotlib import pyplot as plt
 import torch
 
-imgPath = "/home/avraham/alpha-beta-CROWN/complete_verifier/images/Truck/truck.jpg"
-img = cv2.imread(imgPath)[:640,:1280,:] # Read the image with maximum size (640,1280,3)
-canny_output = torch.tensor(cv2.Canny(img,100,200))
 
-img = torch.tensor(img)
-plt.imshow(img/255)
-#plt.show()
+# Blur a given image
+def blur_image(image, ksize=(5, 5), min_threshold=128, max_threshold=255, plot=True):
+    # image = cv2.imread('images/Airplane/airplane1.jpg')
 
-strength = 255
-img_size = img.shape
-noise = torch.tensor((np.random.random(size=img_size))*strength)
+    # Smoothing image
+    blurred_img = cv2.GaussianBlur(image, ksize, 0)
+    mask = np.zeros(image.shape, np.uint8)
 
-# plt.imshow(noise/255)
+    # Create gray scale of the given image
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # # Applying cv2.THRESH_BINARY thresholding techniques
+    # thresh = cv2.threshold(gray, min_threshold, max_threshold, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(gray, min_threshold, max_threshold, cv2.THRESH_BINARY)[1]
+
+    # Extracting the contours from the given binary image
+    contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    cv2.drawContours(mask, contours, -1, (255, 255, 255), 5)
+    output = np.where(mask == np.array([255, 255, 255]), blurred_img, image)  # Apply blur only on contour,
+    # and keep original pixels otherwise
+
+    if plot:  # For Debugging!
+        cv2.imshow("Blurred contour", output)
+        cv2.waitKey(0)
+    return output
+
+def Canny_Blur_Image(image, low_threshold=0, max_low_Threshold=255,
+                     window_name='Edge Map', kernel_size=(5, 5), plot=True):
+    img_blur = cv2.blur(image, kernel_size)
+    src_gray = cv2.cvtColor(img_blur, cv2.COLOR_BGR2GRAY)
+    mask = np.zeros(image.shape, np.uint8)
+
+    detected_edges = cv2.Canny(img_blur, low_threshold, max_low_Threshold, kernel_size)   #### src_gray
+    dst = image * (mask[:, :, None].astype(image.dtype))
+
+    output = np.where(mask == np.array([255, 255, 255]), img_blur, image)  # Apply blur only on contour,
+                                                                              # and keep original pixels otherwise
+    if plot:
+        cv2.imshow(window_name, output)
+        cv2.waitKey(0)
+
+    return output
+
+# # Blur a given image
+# image = cv2.imread('images/Airplane/airplane1.jpg')
+# blurred_img = cv2.GaussianBlur(image, (21, 21), 0)
+# mask = np.zeros(image.shape, np.uint8)
+#
+# gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+# thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]
+# contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#
+# cv2.drawContours(mask, contours, -1, (255, 255, 255), 5)
+# output = np.where(mask == np.array([255, 255, 255]), blurred_img, image)
+# cv2.imshow("Blurred contour", output)
+# cv2.waitKey(0)
+
+#
+# # Find edges using Canny Algorithm
+# imgPath = "images/Airplane/airplane1.jpg"
+# img = cv2.imread(imgPath, cv2.COLOR_BGR2RGB)
+# canny_output = torch.tensor(cv2.Canny(img, 1000, 1000))
+#
+# img = torch.tensor(img)
+# # plt.imshow(img)
+# # plt.show()
+#
+# strength = 255
+# img_size = img.shape
+# noise = torch.tensor((np.random.random(size=img_size)) * strength)
+#
+# canny_output_3_dim = torch.tensor(canny_output).repeat(3, 1, 1).permute(1, 2,
+#                                                                         0) / 255  # Shape: (1024,1280,3) for truck.jpg
+# noised_edges = noise * canny_output_3_dim
+# plt.imshow(noised_edges / 255)
 # plt.show()
-canny_output_3_dim = torch.tensor(canny_output).repeat(3,1,1).permute(1,2,0)/255 # Shape: (1024,1280,3) for truck.jpg
+#
+#
+# # Apply Gaussian blur, creating a new series of images according to different gaussian blur
+# num_blurres = 4
+# blurred = [skimage.filters.gaussian(img / 255, sigma=(sigma, sigma), truncate=3.5, multichannel=True) for sigma in
+#            range(1, num_blurres + 1)]
+# # display blurred image
+# figure, axes = plt.subplots(1, num_blurres, figsize=(15, 8))
+# sigma = 1
+# for i in range(num_blurres):
+#     axes[i].imshow(cv2.cvtColor(blurred[i], cv2.COLOR_BGR2RGB))
+#     axes[i].set_title(f"Gaussian Blur with sigma={sigma}")
+#     sigma += 1
+# plt.show()
+# print()
 
-noised_edges = noise * canny_output_3_dim
-plt.imshow(noised_edges/255)
-plt.show()
 
-new_noised_image = img + noised_edges
-# new_noised_image = (new_noised_image)/255
-plt.imshow(new_noised_image/255)
-plt.show()
+# cv2.imshow("Blurred Image ", blurred)
+# cv2.waitKey(0)
+
+
+# new_noised_image = img + noised_edges
+# plt.imshow(new_noised_image/255)
+# plt.show()
+
 
 # titles = ['Original Image', 'Canny']
 # images = [img,canny_output]

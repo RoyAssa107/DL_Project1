@@ -19,6 +19,10 @@
 
 [DATASET]
     relative_path = images\Airplane\airplane1.jpg
+    # relative_path = images\Airplane\airplane1_1.jpg
+    # relative_path = images\StopSign\stop sign_1.jpg
+
+
 
 ############################################################################
 #                          Attack parameters:                              #
@@ -29,15 +33,18 @@
 #                   For IOU attack the number is in range [0,1]            #
 # noise_algorithm:  Chosen_Noise_Attack/White_Noise_Attack/                #
 #                   Bounding_Box_Attack/Bounding_Box_Center_Attack/        #
-#                   Bernoulli_Bounding_Box_Attack/Canny_Bernoulli_Attack   #
+#                   Bernoulli_Bounding_Box_Attack/Canny_Bernoulli_Attack/  #
+#                   Bounding_Box_Attack_Rectangle/                         #
+#                   Ellipse_Bounding_Box_Attack/                           #
+#                   Bounding_Box_Contour_Blur_Attack                       #
 ############################################################################
 
 [ATTACK]
     max_iter = 100
     max_strength = 255
-    target = IOU
+    target = Missing Detection
     amount = 1
-    noise_algorithm = Ellipse_Bounding_Box_Attack
+    noise_algorithm = Bounding_Box_Contour_Blur_Attack
     max_prob = 0.01
-    upper_IoU = 0.9
-    lower_IoU = 0.8
+    upper_IoU = 0.7
+    lower_IoU = 0.2

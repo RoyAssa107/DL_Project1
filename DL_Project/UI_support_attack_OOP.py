@@ -49,6 +49,9 @@ def main():
     path = config['DATASET']['relative_path']
     conf_level_yolo = float(config['GENERAL']['conf_yolo'])
     iou_thresh_yolo = float(config['GENERAL']['iou_thresh_yolo'])
+    upper_IoU = float(config['ATTACK']['upper_IoU'])
+    lower_IoU = float(config['ATTACK']['lower_IoU'])
+
 
     # cpu/gpu configurations
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -82,7 +85,7 @@ def main():
         X = z.unsqueeze(0).to(dtype=torch.get_default_dtype(),
                               device=device)  # Adding another dimension
         X = X.permute(0, 3, 1, 2)  # Permuting img to be in shape: (1,3,780,1280) for Zidane
-        X = X[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)
+        X = X[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)    ############################################
         results = model(np.asarray(X[0].permute(1, 2, 0)))
 
         # Prepare all kwargs for the attack
@@ -92,16 +95,17 @@ def main():
                               "success_color": None, "noise_algorithm": noise_algorithm,
                               "iteration_num": None, "original_pred": None, "attack_pred": None, "starting_time": None,
                               "ending_time": None, "num_FP_or_IOU_Misses": None,
-                              'outputImgName': None, 'original_img': None, 'attacked_img': None
+                              'outputImgName': None, 'original_img': None, 'attacked_img': None, 'upper_IoU': upper_IoU,
+                              'lower_IoU': lower_IoU
                               }
         attack_obj = Attack(**attack_config_args)
         returned_args = attack_obj.main_attack()
 
         print(returned_args['message'])
         success = returned_args['success']
-        if success:
+        if success is True:
             success_rate += 1
-            results = attack_obj.verify_with_other_models()
+            # results = attack_obj.verify_with_other_models()   #################### TODO: support other models
 
     ending_time = time.time()
     success_rate = success_rate / len(fns)
