@@ -1,3 +1,9 @@
+#########################################################################
+## Copyright (C) 2022, Roy Assa <assa.roy107@gmail.com>                ##
+##                     Avraham Raviv <avrahamsapir1@gmail.com>         ##
+##                     Itav Nissim <itav.nissim@gmail.com>             ##
+#########################################################################
+
 ###########
 # Imports #
 ###########
@@ -16,15 +22,11 @@ import matplotlib.pyplot as plt
 import time
 import torchvision.ops.boxes as bops
 from pycocotools import coco, cocoeval
-from Color_Identification import get_colors_distribution
 from canny_algorithm import blur_image
 
-# import gc
 
-# Normalize image
+# Creating transformer to normalize images
 transform = T.Compose([
-    # T.Resize(480),
-    # T.ToTensor(),
     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
@@ -46,29 +48,7 @@ class Attack:
     # properties specified in config.txt                                       #
     ############################################################################
     def __init__(self, **attack_kwargs):
-        # Attack parameters, drawn from config.txt and all important attack output parameters
-        # The first part includes parameters drawn from config.txt file
-        # The second part includes parameters which hold the attack output
-        # self.attack_config_args = {'model': None, 'x': None, 'results': None, 'base_path': None,
-        #                            'imgPath': None, 'max_iter': None, 'classes': None, 'normalize': lambda x: x,
-        #                            "success_color": None, "noise_algorithm": None,
-        #                            "target": None, "image_index": None, "iteration_num": None, "original_pred": None,
-        #                            "attack_pred": None, "starting_time": None, "ending_time": None, "amount": None,
-        #                            "num_FP_or_IOU_Misses": None, 'outputImgName': None, 'original_img': None,
-        #                            'attacked_img': None, 'success': None, 'message': None
-        #                            }
         self.attack_config_args = attack_kwargs
-
-        ################################################################################
-        # TODO: Avraham check if you want to split between output args and config args #
-        ################################################################################
-        # Attack output parameters
-        # This includes: base_path, original_image, attack_image, target, amount, image_index and more
-        # self.attack_config_args = {"success_color": None, "noise_algorithm": None,
-        #                            "target": None, "image_index": None, "iteration_num": None,
-        #                            "original_pred": None, "attack_pred": None, "starting_time": None,
-        #                            "ending_time": None, "amount": None, "num_FP_or_IOU_Misses": None,
-        #                            'outputImgName': None, 'original_img': None, 'attacked_img': None}
 
     ########################################################################
     # Function that plots the results from the computed attack.            #
@@ -890,7 +870,6 @@ class Attack:
         # It blurs the contours of each bbox in the image.        #
         # According to specified std (using Gaussian blur).       #
         ###########################################################
-
     def attack_on_bounding_box_Contour_Blur(self, iteration_num):
         # Attempt to add specific noise (with specified strength)
         strength = 128  # Noising strength (0-minimal, 255-maximal)

@@ -6,20 +6,17 @@
 
 import configparser
 import os
-import socket
 import time
-import gc
 import numpy as np
-
 import torch
 from termcolor import colored
-
-from attack import od_attack, verify_with_other_models
 from attack_OOP import Attack
 from cocoms_class import *
 
 
-# Function that loads a given model specified by model_name
+#############################################################
+# Function that loads a given model specified by model_name #
+#############################################################
 def load_model(weights='yolov5s'):
     model = None
     is_yolo = False
@@ -28,6 +25,12 @@ def load_model(weights='yolov5s'):
         is_yolo = True
     elif weights == 'ssd':
         return 0
+    elif weights == 'mnist':
+        # model = torch.hub.load('ultralytics/yolov5', 'yolov5s', device='cpu')
+        model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt')
+        # model = torch.jit.load('best_mnist.pt')
+        # model.eval()
+        is_yolo = "mnist"
     return model, is_yolo
 
 
@@ -52,21 +55,25 @@ def main():
     upper_IoU = float(config['ATTACK']['upper_IoU'])
     lower_IoU = float(config['ATTACK']['lower_IoU'])
 
-
     # cpu/gpu configurations
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # device = config['GENERAL']['device']
+    device = config['GENERAL']['device']
     results = None
 
     # Loading a pretrained OD Model
     model_name = config['GENERAL']['model']
     model, is_yolo = load_model(model_name)
-    if is_yolo:
+    if is_yolo is True:
         classes = classes_80
         model.conf_thres = conf_level_yolo
         model.iou_thres = iou_thresh_yolo
-    else:
+    elif is_yolo is False:
         classes = classes_90
+    elif is_yolo == "mnist":
+        classes = mnist_classes
+    else:
+        raise Exception("Error: Please enter correct model!")
+
     is_single_image = not os.path.isdir(path)
     if not is_single_image:
         fns = np.asarray([os.path.join(path, i) for i in os.listdir(path)])
@@ -80,12 +87,13 @@ def main():
 
     for image_index, fn in enumerate(fns):
 
+        device = 'cpu'
         results = model(fn)  # Compute a feed-forward through the OD Net in order to get results of detection
         z = torch.tensor(results.imgs[0], device=device)  # Getting back the img to attack
         X = z.unsqueeze(0).to(dtype=torch.get_default_dtype(),
                               device=device)  # Adding another dimension
-        X = X.permute(0, 3, 1, 2)  # Permuting img to be in shape: (1,3,780,1280) for Zidane
-        X = X[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)    ############################################
+        X = X.permute(0, 3, 1, 2)  # Permuting img to be in correct shape
+        X = X[:, :, :640, :1280]  # Recreating shape: (1,3,640,1280)
         results = model(np.asarray(X[0].permute(1, 2, 0)))
 
         # Prepare all kwargs for the attack
@@ -105,7 +113,6 @@ def main():
         success = returned_args['success']
         if success is True:
             success_rate += 1
-            # results = attack_obj.verify_with_other_models()   #################### TODO: support other models
 
     ending_time = time.time()
     success_rate = success_rate / len(fns)
@@ -125,5 +132,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # config_args()
     main()
