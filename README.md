@@ -53,10 +53,8 @@ settings which control the following arguments:_
 1. _Clone the repo to your local directory using the following command:_ <br>
 <br>    `$ git clone https://github.com/RoyAssa107/DL_Project1.git`  
 <br>
-<br>
-3. _Install all required packages by run the following command in the terminal:_ <br>
-<br>
-`$ pip install -r requirmenents.txt `
+2. _Install all required packages by run the following command in the terminal:_ <br>
+<br> `$ pip install -r requirmenents.txt `
 
 
 ## How to run the code:
