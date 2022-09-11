@@ -1,9 +1,9 @@
 # Adversarial Attacks on Object Detection Models 2021-2022
 
 ## Description:
-In our project, we have implemented 6 different attacks regarding the different type <br> of adversarial attack to indicate
-that even a state-of-the-art OD model is vulnerable <br>
-to the following adversarial attacks, including:
+_In our project, we have implemented 6 different attacks regarding the different type <br>
+of adversarial attack to indicate that even a state-of-the-art OD model is vulnerable <br>
+to the following adversarial attacks, including:_
    1. **_White noise attack_**
    2. **_Edge noise attack_**
    3. **_Bounding box attack_**
@@ -11,13 +11,13 @@ to the following adversarial attacks, including:
    5. **_Bounding box with Bernoulli sampling attack_**
    6. **_Ellipse Bounding Box Attack_** 
 
-In addition, we have added support for different attack purposes such as:
+_In addition, we have added support for different attack purposes such as:_
    1. **_Missing Detection_**
    2. **_False Positive_**
    3. **_IoU Threshold_**
 
-We have created a dedicated interface via **config.txt** file containing several key configuration <br>
-settings which control the following arguments:
+_We have created a dedicated interface via **config.txt** file containing several key configuration <br>
+settings which control the following arguments:_
 
 ### General Parameters:
 * **_device_** - Type of device to run the code on.
@@ -49,9 +49,19 @@ settings which control the following arguments:
 |        |       |            |                  |               |          |              |                   |  Ellipse_Bounding_Box_Attack  |          |           |           |
 
 
+## Installations:
+1. _Clone the repo to your local directory using the following command:_ <br>
+<br>    `$ git clone https://github.com/RoyAssa107/DL_Project1.git`  
+<br>
+<br>
+3. _Install all required packages by run the following command in the terminal:_ <br>
+<br>
+`$ pip install -r requirmenents.txt `
+
+
 ## How to run the code:
-**_After you have configures all parameters explained above and set up the directories <br>
-please follow these instructions:_**
+_After you have cloned the project's repo, installed all the packages, configures all parameters as explained above <br>
+and set up the directories, please follow these instructions:_
         
         1. Run UI_support_attack_OOP.py  
 
@@ -59,6 +69,7 @@ please follow these instructions:_**
            under the current directory named Attack_Output.
 
         3. Check the message in the terminal for summariazation of the attack, including several statistics.
+
 
 
 ## Contributors:
